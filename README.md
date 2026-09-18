@@ -98,6 +98,29 @@ inside the tree it came from was moved twice, not extracted.
 ⚠ **OpenGothic still builds its own copies and is untouched.** Switching it over is a separate
 change and belongs to a session with a console in front of it.
 
+## `__ORBIS__`, not `__PS4__`
+
+The toolchain file defines `__ORBIS__`, `PS4` and `__PS4__`, so all three work and none is going
+away. **Write new code against `__ORBIS__`.**
+
+The reason is in the SDK, in code nobody here wrote. `include/SDL2/SDL_platform.h` - upstream SDL -
+says:
+
+```c
+#if defined(__ORBIS__) || defined(PS4)
+#undef __PS4__
+#define __PS4__ 1
+#endif
+```
+
+`__ORBIS__` and `PS4` are the inputs a compiler or an SDK sets; `__PS4__` is SDL's own derived
+output. Sony's official SDK sets `__ORBIS__` for this console and `__PROSPERO__` for the next, so an
+engine already ported to that SDK tests `__ORBIS__` and compiles here unchanged. The ports in this
+organisation grew up testing `__PS4__` - 24 files against 9 - which is testing another library's
+by-product.
+
+Nothing needs renaming to build. It matters for new code, and for anything sent upstream.
+
 ## Licence
 
 MIT, except one file, and it is on every consumer's link line:

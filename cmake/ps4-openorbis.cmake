@@ -76,6 +76,25 @@ set(PS4_TARGET_TRIPLE "x86_64-pc-freebsd12-elf")
 #
 # The include directories are NOT part of the common flags: C++ needs libc++'s directory
 # ahead of the C one, and that ordering is load-bearing (see below).
+# ⚠ THREE PLATFORM MACROS, AND ONLY ONE OF THEM IS THE SIGNAL. Write new code against __ORBIS__.
+#
+# That is not a preference, it is what code nobody here wrote already assumes. The SDK's own
+# SDL_platform.h - upstream SDL, shipped inside the toolchain - reads:
+#
+#     #if defined(__ORBIS__) || defined(PS4)
+#     #undef __PS4__
+#     #define __PS4__ 1
+#     #endif
+#
+# So __ORBIS__ and PS4 are INPUTS that a compiler or an SDK sets, and __PS4__ is SDL's own DERIVED
+# output. Sony's official SDK sets __ORBIS__ for this console and __PROSPERO__ for the next one, so
+# a port already written for that SDK tests __ORBIS__ and will compile here unchanged. Ports in this
+# organisation grew up testing __PS4__, which is testing somebody else's by-product.
+#
+# All three stay defined, and removing any of them is not on the table: 24 files across these
+# repositories test __PS4__ today, upstream SDL wants PS4 or __ORBIS__, and a define costs nothing.
+# What changes is which one new code reaches for, and what an upstreamable patch uses - __ORBIS__,
+# every time.
 set(PS4_COMMON_FLAGS
   "--target=${PS4_TARGET_TRIPLE} -fPIC -funwind-tables -D__PS4__ -DPS4 -D__ORBIS__ -D_BSD_SOURCE=1 -isysroot ${OO_PS4_TOOLCHAIN}")
 
