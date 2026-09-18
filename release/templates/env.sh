@@ -35,6 +35,11 @@ _orbis_set(){ # name value
 echo "== $(sed -n 's/^bundle=//p' "$ORBIS_SDK_BUNDLE/BUNDLE.txt")"
 _orbis_set OO_PS4_TOOLCHAIN "$ORBIS_SDK_BUNDLE/sdk"
 _orbis_set ORBIS_COMPAT_DIR "$ORBIS_SDK_BUNDLE/orbis-compat"
+# ⚠ BOTH POINT AT THE SAME DIRECTORY HERE, AND THAT IS NOT A MISTAKE. In a checkout they are two
+# repositories - orbis-compat is include/ and the archive, orbis-porting-kit is the CMake, the
+# loader shim and scripts/ps4/. The bundle stages the kit's half under orbis-compat/ because that
+# is the layout consumers wrote down, so a build script that asks for either gets what it wants.
+_orbis_set ORBIS_KIT_DIR    "$ORBIS_SDK_BUNDLE/orbis-compat"
 _orbis_set ORBIS_MESA_SRC   "$ORBIS_SDK_BUNDLE/mesa"
 _orbis_set ORBIS_MESA_BUILD "$ORBIS_SDK_BUNDLE/mesa/build-orbis"
 

@@ -106,3 +106,28 @@ jobs:
             build/**/eboot.bin
             build/**/*.pkg
           if-no-files-found: warn
+
+  # ⚠ THE OTHER MODE, PROVEN RATHER THAN DOCUMENTED. Everything above builds from this checkout;
+  # this job names a published bundle and nothing else - no SDK tag, no overlay commit, no Mesa
+  # release - and builds the same example out of it. If the two modes ever stop agreeing, this is
+  # where it shows.
+  bundle-mode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The toolchain, from one string
+        uses: ./.github/actions/setup-orbis
+        with:
+          sdk-bundle: orbis-sdk-v1
+
+      - name: hello, out of the bundle
+        run: |
+          set -euo pipefail
+          cmake -S examples/hello -B build-hello-bundle -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$ORBIS_KIT_DIR/cmake/ps4-openorbis.cmake"
+          cmake --build build-hello-bundle
+          eboot="$(find build-hello-bundle -name 'eboot.bin' | head -1)"
+          [ -n "$eboot" ] || { echo "!! no eboot.bin from the bundle path" >&2; exit 1; }
+          ls -l "$eboot"

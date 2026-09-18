@@ -69,14 +69,34 @@ inputs:
     # ⚠ A COMMIT SHA, NEVER A BRANCH NAME. The cache key is this value verbatim; a key that
     # can mean two different trees serves yesterday's overlay against today's headers.
     description: orbis-compat commit to build against.
-    required: true
+    required: false
   mesa-repo:
     description: Repository publishing the Mesa bundle.
     required: false
     default: orbis-ports/mesa-ps4
   mesa-release:
     description: Release tag in mesa-repo whose orbis-mesa-<sha>.tar.gz to consume.
-    required: true
+    # ⚠ NOT `required`, BECAUSE IT DEPENDS ON THE MODE. With sdk-bundle set, the Mesa inside the
+    # bundle is the one being used and naming a second would be a lie. The first step below refuses
+    # a call that gives neither, which is the check `required:` cannot express.
+    required: false
+  sdk-bundle:
+    # ⚠ THE OTHER MODE, AND THE REASON BOTH EXIST. Naming a bundle release here - orbis-sdk-v1 -
+    # replaces the SDK tag, the overlay commit and the Mesa release with ONE string, and the three
+    # inside it were paired and gated together: the bundle records the fingerprint of the include/
+    # tree Mesa compiled against and refuses to be cut unless it matches what is staged.
+    #
+    # That is what a release build and a stranger want. It is NOT what development wants: a change
+    # to orbis-compat is invisible here until somebody rebuilds Mesa and cuts a new bundle, which
+    # is fifteen minutes rather than two. So a port being worked on keeps the three inputs below,
+    # and a port being shipped names a bundle. When this is set, the three are ignored.
+    description: A bundle release tag (e.g. orbis-sdk-v1) to use instead of the three inputs below.
+    required: false
+    default: ""
+  bundle-repo:
+    description: Repository publishing the bundle release.
+    required: false
+    default: orbis-ports/orbis-porting-kit
   token:
     # gh needs this for BOTH downloads. github.token is scoped to the repository running the
     # workflow, so it can read orbis-ports/mesa-ps4 only while that repository is public;
@@ -108,7 +128,26 @@ runs:
     # -----------------------------------------------------------------------------------
     # 0. The host tools the cross build needs. clang and lld do the compiling; llvm-ar
     #    builds liborbis-compat.a and llvm-nm is what the import-list assertion is made of.
+    - name: One mode or the other
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ -n "${{ inputs.sdk-bundle }}" ]; then
+          echo "== bundle mode: ${{ inputs.bundle-repo }} ${{ inputs.sdk-bundle }}"
+          for i in "${{ inputs.orbis-compat-ref }}" "${{ inputs.mesa-release }}"; do
+            [ -z "$i" ] || { echo "!! sdk-bundle was given together with orbis-compat-ref or mesa-release." >&2
+                             echo "   The bundle already contains a paired SDK, overlay and Mesa; a second" >&2
+                             echo "   answer would be silently ignored, which is worse than refusing." >&2
+                             exit 1; }
+          done
+        else
+          echo "== three inputs: sdk ${{ inputs.sdk-tag }}, overlay ${{ inputs.orbis-compat-ref }}, mesa ${{ inputs.mesa-release }}"
+          [ -n "${{ inputs.orbis-compat-ref }}" ] || { echo "!! orbis-compat-ref is required without sdk-bundle" >&2; exit 1; }
+          [ -n "${{ inputs.mesa-release }}" ]     || { echo "!! mesa-release is required without sdk-bundle" >&2; exit 1; }
+        fi
+
     - name: Host tools
+      if: inputs.sdk-bundle == ''
       shell: bash
       run: |
         set -euo pipefail
@@ -127,6 +166,7 @@ runs:
     # 1. The SDK. Cached by tag, because it is 289 MB and it is already a release upstream -
     #    which is the whole reason it is not built here.
     - name: Restore OpenOrbis SDK
+      if: inputs.sdk-bundle == ''
       id: sdk-cache
       uses: actions/cache@v4
       with:
@@ -134,6 +174,7 @@ runs:
         key: openorbis-${{ inputs.sdk-tag }}
 
     - name: Fetch OpenOrbis SDK
+      if: inputs.sdk-bundle == ''
       if: steps.sdk-cache.outputs.cache-hit != 'true'
       shell: bash
       env:
@@ -164,6 +205,7 @@ runs:
         chmod +x "$dest"/bin/linux/* 2>/dev/null || true
 
     - name: Assert the SDK is usable
+      if: inputs.sdk-bundle == ''
       shell: bash
       run: |
         set -euo pipefail
@@ -182,6 +224,7 @@ runs:
     #    cmake/ps4-openorbis.cmake toolchain file and cmake/orbis-tls.ld, and build.sh sources
     #    scripts/ps4/orbis-env.sh and packages through scripts/ps4/make-pkg.sh. Only build/ is cached.
     - name: Checkout orbis-compat
+      if: inputs.sdk-bundle == ''
       uses: actions/checkout@v4
       with:
         repository: ${{ inputs.orbis-compat-repo }}
@@ -190,6 +233,7 @@ runs:
         token: ${{ inputs.token }}
 
     - name: Restore liborbis-compat.a
+      if: inputs.sdk-bundle == ''
       id: compat-cache
       uses: actions/cache@v4
       with:
@@ -197,6 +241,7 @@ runs:
         key: orbis-compat-${{ inputs.orbis-compat-ref }}-${{ inputs.sdk-tag }}
 
     - name: Build orbis-compat
+      if: inputs.sdk-bundle == ''
       if: steps.compat-cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ${{ github.workspace }}/.orbis/orbis-compat
@@ -208,6 +253,7 @@ runs:
         OO_PS4_TOOLCHAIN="$HOME/.local/opt/openorbis" ./build.sh
 
     - name: Assert liborbis-compat.a is present
+      if: inputs.sdk-bundle == ''
       shell: bash
       run: |
         set -euo pipefail
@@ -220,6 +266,7 @@ runs:
     #    its parents. Not cached: it is ~16 MB gzipped and pinned by tag, so a fetch is
     #    cheaper than a cache round-trip and cannot go stale.
     - name: Fetch the Mesa bundle
+      if: inputs.sdk-bundle == ''
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
@@ -244,6 +291,7 @@ runs:
         echo "ORBIS_MESA_SRC=$root" >> "$GITHUB_ENV"
 
     - name: Assert the bundle's manifest
+      if: inputs.sdk-bundle == ''
       shell: bash
       run: |
         set -euo pipefail
@@ -285,6 +333,7 @@ runs:
     #     What it does not catch: presence, not meaning. Constants inlined at Mesa's compile
     #     time leave no symbol to check at all.
     - name: Assert Mesa's imports are still defined by orbis-compat
+      if: inputs.sdk-bundle == ''
       shell: bash
       run: |
         set -euo pipefail
@@ -316,13 +365,87 @@ runs:
     # -----------------------------------------------------------------------------------
     # 4. Export. build.sh reads ORBIS_COMPAT_DIR (to find orbis-env.sh), OO_PS4_TOOLCHAIN
     #    (through orbis-env.sh) and ORBIS_MESA_SRC + ORBIS_MESA_BUILD (the bundle).
+    # ------------------------------------------------------------------------------------
+    # The other mode: one tarball, already paired and gated.
+    - name: Host tools (bundle mode)
+      if: inputs.sdk-bundle != ''
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update -y -o Acquire::Retries=3
+        sudo apt-get install -y -o Acquire::Retries=3 clang lld llvm
+        clang --version | head -1
+
+    - name: Restore the SDK bundle
+      if: inputs.sdk-bundle != ''
+      id: bundle-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/orbis-sdk-bundle/${{ inputs.sdk-bundle }}
+        # The tag names an immutable release asset, so the tag IS the cache key.
+        key: orbis-sdk-bundle-${{ inputs.bundle-repo }}-${{ inputs.sdk-bundle }}
+
+    - name: Fetch and unpack the bundle
+      if: inputs.sdk-bundle != '' && steps.bundle-cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        dest="$HOME/.cache/orbis-sdk-bundle/${{ inputs.sdk-bundle }}"
+        rm -rf "$dest"; mkdir -p "$dest"
+        tmp="$(mktemp -d)"
+        gh release download "${{ inputs.sdk-bundle }}" --repo "${{ inputs.bundle-repo }}" \
+           --pattern '*.tar.gz' --pattern '*.tar.gz.sha256' --dir "$tmp"
+
+        # ⚠ THE CHECKSUM IS VERIFIED, NOT CARRIED. The release ships a .sha256 beside the tarball
+        # and a download that silently truncated would otherwise surface as a corrupt archive
+        # several steps later, blamed on whatever first read from it.
+        ( cd "$tmp" && sha256sum -c ./*.tar.gz.sha256 )
+
+        tar -xzf "$tmp"/*.tar.gz -C "$dest" --strip-components=1
+        rm -rf "$tmp"
+        [ -f "$dest/BUNDLE.txt" ] || { echo "!! no BUNDLE.txt in the unpacked bundle" >&2; exit 1; }
+
+    - name: What the bundle says it is
+      if: inputs.sdk-bundle != ''
+      shell: bash
+      run: |
+        set -euo pipefail
+        dest="$HOME/.cache/orbis-sdk-bundle/${{ inputs.sdk-bundle }}"
+        sed -n '/^\[orbis-compat-imports\]/q;p' "$dest/BUNDLE.txt" | sed 's/^/   /'
+
+        # ⚠ gate=pass IS THE ONLY THING THAT MAKES A BUNDLE USABLE, and it is asserted here rather
+        # than trusted. It means bundle-gate.sh unpacked this tarball on a clean host, scrubbed the
+        # environment and built a real port from it. A bundle that says gate=unproven was never
+        # published on purpose; finding one means something hand-made got in.
+        grep -qx 'gate=pass' "$dest/BUNDLE.txt" || {
+          echo "!! this bundle does not say gate=pass - it is not publishable and not usable here" >&2
+          exit 1; }
+        grep -qx 'pairing=ok' "$dest/BUNDLE.txt" || {
+          echo "!! this bundle does not say pairing=ok" >&2; exit 1; }
+
+        # The bundle stages the kit's cmake/, vkloader/ and scripts/ps4/ under orbis-compat/, which
+        # is the layout consumers wrote down, so BOTH variables point there.
+        {
+          echo "OO_PS4_TOOLCHAIN=$dest/sdk"
+          echo "ORBIS_COMPAT_DIR=$dest/orbis-compat"
+          echo "ORBIS_KIT_DIR=$dest/orbis-compat"
+          echo "ORBIS_MESA_SRC=$dest/mesa"
+          echo "ORBIS_MESA_BUILD=$dest/mesa/build-orbis"
+          echo "ORBIS_SDK_BUNDLE=$dest"
+        } >> "$GITHUB_ENV"
+
     - name: Export the paths
       id: export
       shell: bash
       run: |
         set -euo pipefail
-        tc="$HOME/.local/opt/openorbis"
-        compat="${GITHUB_WORKSPACE}/.orbis/orbis-compat"
+        # In bundle mode every path is already in the environment from the step above; in the
+        # three-input mode they are where this action put them. One export step either way, so a
+        # consumer reads the same four variables and the same four outputs whichever mode it used.
+        tc="${OO_PS4_TOOLCHAIN:-$HOME/.local/opt/openorbis}"
+        compat="${ORBIS_COMPAT_DIR:-${GITHUB_WORKSPACE}/.orbis/orbis-compat}"
         src="${ORBIS_MESA_SRC}"
         build="${src}/build-orbis"
 
