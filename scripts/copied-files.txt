@@ -19,7 +19,9 @@
 # CI builds and the overlay's dies with the bundle cut moving here. Named here rather than left for
 # somebody to find.
 #
-# examples/hello/ IS listed: it needs no Mesa and no loader, so it had nothing to adapt.
+# examples/hello/ was listed for one commit and is not any more: the overlay's copy is gone, so
+# this repository OWNS it and there is nothing left to compare against. Same for release/: the cut,
+# the verify, the gate and their 27 tests moved here rather than being copied.
 vkloader/CMakeLists.txt
 vkloader/vkloader.c
 vkloader/vkloader.h
@@ -30,6 +32,4 @@ cmake/ps4-package.cmake
 cmake/orbis-compat.cmake
 cmake/orbis-tls.ld
 cmake/orbis.ini.in
-examples/hello/CMakeLists.txt -> scripts/release/hello/CMakeLists.txt
-examples/hello/hello.c -> scripts/release/hello/hello.c
 scripts/orbis-new.sh
