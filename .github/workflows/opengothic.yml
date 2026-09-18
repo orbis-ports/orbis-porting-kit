@@ -1,0 +1,134 @@
+# Phase 2: a real port, built with this repository's files instead of orbis-compat's.
+#
+# triangle proves the kit can build something written for it. This proves it can build something
+# that was NOT written for it - OpenGothic, unmodified, at its own pinned commit. That is the only
+# test that answers the question this repository exists to ask.
+#
+# ⚠ HOW THE SUBSTITUTION IS MADE HONEST. orbis-compat is checked out by setup-orbis as usual, and a
+# `composed/` tree is assembled beside it: a symlink to every entry of that checkout EXCEPT cmake/
+# and vkloader/, which are symlinks into THIS repository. OpenGothic's ps4/build.sh is then pointed
+# at composed/ with --orbis-compat.
+#
+# The compat copies are not shadowed, they are ABSENT from the tree the build sees. So anything
+# that quietly reached back into orbis-compat's cmake/ or vkloader/ fails here rather than
+# succeeding on the wrong file. It also means this run exercises the two copies triangle could not
+# reach: ps4-openorbis.cmake takes orbis-compat.cmake and orbis-tls.ld from ORBIS_COMPAT_DIR
+# (lines 107 and 201), which is composed/ here, which is this repository.
+#
+# ⚠ WHAT IT STILL DOES NOT PROVE. include/, scripts/ps4/ and build/liborbis-compat.a come from
+# orbis-compat, because they are the overlay and they are not the kit's to own. A kit that stood
+# alone would have to pin and fetch them itself; composing them here is the honest shape of the
+# dependency, not a workaround for it.
+name: opengothic-on-the-kit
+
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      opengothic-ref:
+        description: OpenGothic commit or branch to build (a sha where it matters).
+        required: false
+        default: ps4-support
+
+env:
+  ORBIS_COMPAT_REF: 6af90a8600464af4e29b384a9533e8284c14c625
+  MESA_RELEASE: orbis-mesa-4c934ebf9cda
+
+jobs:
+  opengothic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: kit
+
+      # Recursive: lib/Tempest and lib/ZenKit are the forks carrying the port, and ZenKit's own
+      # vendor submodules are part of its build. A shallow clone without them fails late, which
+      # this org has already paid for once.
+      - uses: actions/checkout@v4
+        with:
+          repository: orbis-ports/OpenGothic
+          ref: ${{ github.event.inputs.opengothic-ref || 'ps4-support' }}
+          submodules: recursive
+          path: OpenGothic
+
+      - name: Build dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y -o Acquire::Retries=3
+          sudo apt-get install -y -o Acquire::Retries=3 --no-install-recommends glslang-tools
+          glslangValidator --version | head -1
+
+      - name: The toolchain, the overlay and Mesa
+        uses: ./kit/.github/actions/setup-orbis
+        with:
+          orbis-compat-ref: ${{ env.ORBIS_COMPAT_REF }}
+          mesa-release: ${{ env.MESA_RELEASE }}
+
+      - name: Compose the tree the port will see
+        run: |
+          set -euo pipefail
+          kit="$GITHUB_WORKSPACE/kit"
+          composed="$GITHUB_WORKSPACE/composed"
+          rm -rf "$composed"; mkdir -p "$composed"
+
+          # Everything the overlay owns, by reference.
+          for e in "$ORBIS_COMPAT_DIR"/* "$ORBIS_COMPAT_DIR"/.[!.]*; do
+            [ -e "$e" ] || continue
+            n="$(basename "$e")"
+            case "$n" in cmake|vkloader) continue ;; esac
+            ln -s "$e" "$composed/$n"
+          done
+
+          # The two the kit owns. Absent above, so nothing can fall back to them.
+          ln -s "$kit/cmake"    "$composed/cmake"
+          ln -s "$kit/vkloader" "$composed/vkloader"
+
+          echo "== composed/"
+          ls -l "$composed" | sed 's/^/   /'
+          for f in cmake/ps4-openorbis.cmake cmake/orbis-tls.ld cmake/orbis-compat.cmake vkloader/vkloader.h; do
+            real="$(readlink -f "$composed/$f")"
+            case "$real" in
+              "$kit"/*) echo "ok  $f -> $real" ;;
+              *) echo "!! $f resolved OUTSIDE the kit: $real" >&2; exit 1 ;;
+            esac
+          done
+          echo "COMPOSED=$composed" >> "$GITHUB_ENV"
+
+      - name: Build and package OpenGothic against the kit
+        run: |
+          set -euo pipefail
+          cd OpenGothic
+          ps4/build.sh --orbis-compat "$COMPOSED" \
+                       --work "${RUNNER_TEMP}/opengothic-ps4" \
+                       --jobs "$(nproc)"
+          echo "PS4_OUT=${RUNNER_TEMP}/opengothic-ps4/build/opengothic" >> "$GITHUB_ENV"
+
+      # ⚠ ASSERT ON ARTEFACTS, NOT ON THE EXIT STATUS. create-fself and make-pkg.sh have both been
+      # seen to exit 0 while producing nothing; OpenGothic's own workflow says the same.
+      - name: Assert the package
+        run: |
+          set -euo pipefail
+          cd "$PS4_OUT"
+          ls -l
+          eboot="$(find . -name 'eboot.bin' | head -1)"
+          pkg="$(find . -name '*.pkg' | head -1)"
+          [ -n "$eboot" ] || { echo "!! no eboot.bin" >&2; exit 1; }
+          [ -n "$pkg" ]   || { echo "!! no .pkg - packaging is part of what the kit has to carry" >&2; exit 1; }
+          ls -l "$eboot" "$pkg"
+
+      - name: The port's own checkout is unchanged
+        # The kit must not need a patched consumer. If this fails, the substitution was not clean
+        # and the phase-2 claim is false whatever the build said.
+        run: |
+          set -euo pipefail
+          cd OpenGothic
+          git status --porcelain --untracked-files=no | tee "${RUNNER_TEMP}/dirty.txt"
+          [ ! -s "${RUNNER_TEMP}/dirty.txt" ] || { echo "!! the build modified tracked files in the port" >&2; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opengothic-on-the-kit
+          path: ${{ env.PS4_OUT }}/*.pkg
+          if-no-files-found: error
