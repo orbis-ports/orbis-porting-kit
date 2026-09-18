@@ -1,10 +1,10 @@
 # The kit builds something with its own copies, or the copies are worth nothing.
 #
-# Two jobs, and the order is deliberate: `copies` needs no SDK, no Mesa and no network beyond a
-# checkout, so it still answers when the toolchain download is what broke. `triangle` is the one
-# that matters - it configures with THIS repository's cmake/ps4-openorbis.cmake and links THIS
-# repository's vkloader, so a copy that rotted is a red build rather than a surprise for whoever
-# adopts the kit first.
+# ⚠ THE `copies` JOB IS GONE, AND THAT IS THE POINT RATHER THAN A DELETION. It compared this
+# repository's files against orbis-compat's byte for byte, because for one day they lived in both.
+# They do not any more: cmake/, vkloader/, the examples and orbis-new.sh are this repository's, and
+# the overlay ships include/ and an archive. A test that compares a file against nothing is worse
+# than no test, so it went with the thing it was watching.
 #
 # ⚠ WHAT THIS DOES NOT YET PROVE. The toolchain file reaches back into ORBIS_COMPAT_DIR for
 # cmake/orbis-tls.ld and cmake/orbis-compat.cmake (see ps4-openorbis.cmake:107 and :201), so the
@@ -28,21 +28,6 @@ env:
   MESA_RELEASE: orbis-mesa-4c934ebf9cda
 
 jobs:
-  copies:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          path: kit
-      - uses: actions/checkout@v4
-        with:
-          repository: orbis-ports/orbis-compat
-          ref: ${{ env.ORBIS_COMPAT_REF }}
-          path: orbis-compat
-      - name: Every copy is byte-identical to the overlay it was taken from
-        run: kit/scripts/check-copies.sh --compat "$GITHUB_WORKSPACE/orbis-compat"
-
   triangle:
     runs-on: ubuntu-latest
     timeout-minutes: 30

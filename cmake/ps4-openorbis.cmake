@@ -97,14 +97,22 @@ if (NOT ORBIS_COMPAT_DIR)
 	endif ()
 endif ()
 
-if (NOT EXISTS "${ORBIS_COMPAT_DIR}/cmake/orbis-compat.cmake")
+# ⚠ THE OVERLAY IS CHECKED BY ITS HEADERS, NOT BY THIS FILE'S SIBLINGS. Until 2026-09-18 both
+# lived in one repository and one path answered both questions; they are now two - the kit ships
+# the CMake, the overlay ships include/ and the archive - so the test is a header the overlay
+# actually owns. Pointing ORBIS_COMPAT_DIR at a tree with no include/ used to produce a link error
+# about a missing archive, hundreds of lines later.
+if (NOT EXISTS "${ORBIS_COMPAT_DIR}/include/orbis_prefix.h")
 	message(FATAL_ERROR
 		"orbis-compat not found at '${ORBIS_COMPAT_DIR}'. It carries the corrections this SDK "
 		"needs; building without it is building against declarations known to be wrong. Set "
 		"-DORBIS_COMPAT_DIR=<path> or the ORBIS_COMPAT_DIR environment variable.")
 endif ()
 
-include("${ORBIS_COMPAT_DIR}/cmake/orbis-compat.cmake")
+# Its own sibling, not the overlay's copy: this file, orbis-compat.cmake and orbis-tls.ld travel
+# together and a bundle stages them together, so reaching through a variable to find the file next
+# to this one was only ever a way for the three to come from different versions.
+include("${CMAKE_CURRENT_LIST_DIR}/orbis-compat.cmake")
 orbis_compat_locate()
 
 # ⚠ NO "the archive must already exist" CHECK ANY MORE, and its absence is deliberate: the overlay
@@ -198,7 +206,7 @@ endif()
 # The PS4 loader rounds segment sizes to 0x1000 and maps raw p_vaddr, so that extra
 # segment overlaps the text segment and the image is rejected.
 set(PS4_LINK_FLAGS
-  "-nostdlib -fuse-ld=lld -pie -Wl,-m,elf_x86_64 -Wl,--script=${ORBIS_COMPAT_DIR}/cmake/orbis-tls.ld -Wl,--eh-frame-hdr -Wl,--no-rosegment -L${OO_PS4_TOOLCHAIN}/lib")
+  "-nostdlib -fuse-ld=lld -pie -Wl,-m,elf_x86_64 -Wl,--script=${CMAKE_CURRENT_LIST_DIR}/orbis-tls.ld -Wl,--eh-frame-hdr -Wl,--no-rosegment -L${OO_PS4_TOOLCHAIN}/lib")
 
 # ⚠ orbis-compat with --whole-archive, and both halves matter. Nothing references backtrace() until
 # something crashes, so a linker that keeps only what is referenced drops it; and this has to be

@@ -5,7 +5,7 @@
 # that a target NAMED ps4-vkloader exist (Engine/CMakeLists.txt), never that Tempest declare it.
 # A consumer adds this directory:
 #
-#     add_subdirectory("${ORBIS_COMPAT_DIR}/vkloader" ps4-vkloader)
+#     add_subdirectory("${ORBIS_KIT_DIR}/vkloader" ps4-vkloader)
 #
 # WHAT THIS IS. Tempest's Vulkan backend calls vkCreateInstance, vkCmdDraw and ~130 more global symbols, and
 # every other platform satisfies them with the Khronos loader. There is none here and there cannot be one: the

@@ -6,8 +6,8 @@
 #       mesa-release:     orbis-mesa-<sha>
 #       sdk-tag:          v0.5.4          # optional
 #
-# It exports OO_PS4_TOOLCHAIN, ORBIS_COMPAT_DIR, ORBIS_MESA_SRC and ORBIS_MESA_BUILD, as both
-# environment variables and step outputs.
+# It exports OO_PS4_TOOLCHAIN, ORBIS_COMPAT_DIR, ORBIS_KIT_DIR, ORBIS_MESA_SRC and
+# ORBIS_MESA_BUILD, as both environment variables and step outputs.
 #
 # ------------------------------------------------------------------ why this file is published
 #
@@ -92,6 +92,9 @@ outputs:
   ORBIS_COMPAT_DIR:
     description: The orbis-compat checkout, with build/liborbis-compat.a present.
     value: ${{ steps.export.outputs.ORBIS_COMPAT_DIR }}
+  ORBIS_KIT_DIR:
+    description: This kit - the toolchain file, the loader shim, the services and the examples.
+    value: ${{ steps.export.outputs.ORBIS_KIT_DIR }}
   ORBIS_MESA_SRC:
     description: The unpacked Mesa bundle root; its include/ is what the driver was built against.
     value: ${{ steps.export.outputs.ORBIS_MESA_SRC }}
@@ -323,9 +326,19 @@ runs:
         src="${ORBIS_MESA_SRC}"
         build="${src}/build-orbis"
 
+        # ⚠ AND THE KIT ITSELF. This action runs OUT OF the kit, so it is the one component that
+        # does not have to guess where the kit is - github.action_path points at this directory and
+        # the repository root is three levels up. Every consumer that wants the toolchain file, the
+        # loader shim or an example used to hardcode a path or reach into ORBIS_COMPAT_DIR for
+        # files that are not the overlay's any more.
+        kit="$(cd "${{ github.action_path }}/../../.." && pwd -P)"
+        [ -f "$kit/cmake/ps4-openorbis.cmake" ] || {
+          echo "!! $kit does not look like the kit (no cmake/ps4-openorbis.cmake)" >&2; exit 1; }
+
         {
           echo "OO_PS4_TOOLCHAIN=$tc"
           echo "ORBIS_COMPAT_DIR=$compat"
+          echo "ORBIS_KIT_DIR=$kit"
           echo "ORBIS_MESA_SRC=$src"
           echo "ORBIS_MESA_BUILD=$build"
         } | tee -a "$GITHUB_ENV" >> "$GITHUB_OUTPUT"

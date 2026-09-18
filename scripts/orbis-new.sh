@@ -239,7 +239,17 @@ target_include_directories(PROJECT_NAME_PLACEHOLDER PRIVATE "${CMAKE_CURRENT_BIN
 # ps4-vkloader is the Vulkan C ABI. This console has no Vulkan loader and cannot have one: the eboot
 # is statically linked, so there is no libvulkan.so to dlopen. The shim defines the entry points a
 # normal program calls and forwards each through RADV's ICD door.
-add_subdirectory("${ORBIS_COMPAT_DIR}/vkloader" ps4-vkloader)
+# ORBIS_KIT_DIR is exported by orbis-ports/orbis-porting-kit's setup-orbis action, and by env.sh
+# inside an SDK bundle. The fallback is where the loader lived until 2026-09-18, so a project
+# generated today still configures against an older bundle.
+if(NOT ORBIS_KIT_DIR AND DEFINED ENV{ORBIS_KIT_DIR})
+  set(ORBIS_KIT_DIR "$ENV{ORBIS_KIT_DIR}")
+endif()
+if(ORBIS_KIT_DIR AND EXISTS "${ORBIS_KIT_DIR}/vkloader/CMakeLists.txt")
+  add_subdirectory("${ORBIS_KIT_DIR}/vkloader" ps4-vkloader)
+else()
+  add_subdirectory("${ORBIS_COMPAT_DIR}/vkloader" ps4-vkloader)
+endif()
 target_link_libraries(PROJECT_NAME_PLACEHOLDER PRIVATE ps4-vkloader)
 CMAKE
   sed -i.bak "s/PROJECT_NAME_PLACEHOLDER/$NAME/g" "$PROJ/CMakeLists.txt" && rm -f "$PROJ/CMakeLists.txt.bak"

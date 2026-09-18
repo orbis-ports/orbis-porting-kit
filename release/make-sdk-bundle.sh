@@ -381,9 +381,15 @@ done
 # crt/ is in this list because ORBIS_CRT=own reaches for build/crt/crt1.o and a consumer who
 # selects it must be able to rebuild those objects; src/ and test/ are here because the MIT
 # terms are easier to honour with the source present than by pointing at a repository.
-for d in include cmake optional vkloader scripts test src crt; do
+for d in include optional scripts test src crt; do
   [ -d "$COMPAT/$d" ] && cp -a "$COMPAT/$d" "$STAGE/orbis-compat/$d"
 done
+# ⚠ cmake/ AND vkloader/ COME FROM THE KIT AND ARE STAGED WHERE THEY HAVE ALWAYS BEEN. They moved
+# out of the overlay on 2026-09-18; the bundle keeps the old layout because toolchain/orbis-sdk.cmake
+# includes orbis-compat/cmake/ps4-openorbis.cmake and a consumer may have written that path down.
+# Changing where a bundle puts them is a separate decision from where they are developed.
+cp -a "$KIT/cmake"    "$STAGE/orbis-compat/cmake"
+cp -a "$KIT/vkloader" "$STAGE/orbis-compat/vkloader"
 cp -a "$COMPAT/LICENSE" "$COMPAT/README.md" "$STAGE/orbis-compat/"
 [ -f "$COMPAT/build.sh" ] && cp -a "$COMPAT/build.sh" "$STAGE/orbis-compat/"
 mkdir -p "$STAGE/orbis-compat/build"
