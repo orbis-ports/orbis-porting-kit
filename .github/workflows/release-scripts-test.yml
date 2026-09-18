@@ -26,10 +26,14 @@ name: release scripts test
 
 on:
   push:
-    branches: [master]
+    # ⚠ main, NOT master. This workflow came from a repository whose default branch is master; left
+    # as it was it would have matched nothing here and gone quietly unrun, which is the failure
+    # shape it exists to prevent. Found on the first push after the move, by its absence.
+    branches: [main]
     paths:
       - 'release/**'
       - 'cmake/**'
+      - 'examples/**'
       - '.github/workflows/release-scripts-test.yml'
   pull_request:
     paths:
