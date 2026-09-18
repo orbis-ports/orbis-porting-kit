@@ -88,6 +88,30 @@ err(){  printf '\033[1;31mXX\033[0m %s\n' "$*" >&2; }
 # 0. The host tools. Named individually, because "install llvm" is not a diagnosis.
 # -----------------------------------------------------------------------------------------
 log "0. host tools"
+
+# ⚠ HOMEBREW'S llvm IS KEG-ONLY, so on macOS NONE of ld.lld, llvm-ar, llvm-ranlib or llvm-nm is
+# on PATH after `brew install llvm` - the formula deliberately does not link them into
+# /opt/homebrew/bin, because they would shadow Apple's toolchain for every other build on the
+# machine. MEASURED 2026-09-18: this stage exited 4 "missing: ld.lld llvm-ar llvm-ranlib llvm-nm"
+# on a Mac where all four were installed, and told the reader to install what they already had.
+#
+# So the keg is looked for before anything is called missing, and it is PREPENDED: Apple's
+# /usr/bin/ar accepts the call and refuses x86_64-pc-freebsd12-elf objects, which is the failure
+# orbis-compat's build.sh had to grow a member count to catch. Being second on PATH is not enough.
+#
+# `brew --prefix llvm` first because it is the answer for any install prefix; the two literals
+# after it are the Apple Silicon and Intel defaults, and they are there so this works on a machine
+# with the keg but without brew on PATH (a CI runner restoring a cached /opt/homebrew, for one).
+if [ "$(uname -s)" = Darwin ]; then
+  for _llvmbin in "$( (brew --prefix llvm) 2>/dev/null)/bin" /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin; do
+    [ -x "$_llvmbin/llvm-nm" ] || continue
+    case ":$PATH:" in *":$_llvmbin:"*) ;; *) PATH="$_llvmbin:$PATH"; export PATH
+      log "   Homebrew llvm is keg-only; prepended $_llvmbin" ;; esac
+    break
+  done
+  unset _llvmbin
+fi
+
 missing=()
 for t in clang clang++ ld.lld llvm-ar llvm-ranlib llvm-nm cmake; do
   command -v "$t" >/dev/null 2>&1 || missing+=("$t")
@@ -98,7 +122,8 @@ if [ ${#missing[@]} -ne 0 ]; then
   warn "  ld.lld is the linker the PS4 target needs; llvm-ar/llvm-ranlib build the archives;"
   warn "  llvm-nm is what the import assertion is made of. On Debian/Ubuntu:"
   warn "      sudo apt-get install -y clang lld llvm cmake"
-  warn "  On macOS these are NOT in Apple's clang - brew install llvm and put it on PATH."
+  warn "  On macOS these are NOT in Apple's clang: brew install llvm. The keg is found"
+  warn "  automatically above, so reaching here on a Mac means it is genuinely not installed."
   exit 4
 fi
 for t in clang ld.lld llvm-nm; do printf '   %-10s %s\n' "$t" "$(command -v "$t")"; done

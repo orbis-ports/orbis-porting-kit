@@ -1,4 +1,4 @@
-# scripts/release — cutting one SDK bundle
+# release — cutting one SDK bundle
 
 Four scripts, in the order they run. Each refuses rather than warns; the point of the set is
 that a bundle which reaches a stranger has passed all four.
@@ -26,41 +26,43 @@ Needs `clang clang++ ld.lld llvm-ar llvm-ranlib llvm-nm cmake` and, for the Mesa
 
 ```sh
 # 0. The four inputs, in the order they depend on each other.
+#    The scripts live HERE, in the kit; the overlay they cut is a separate checkout, and
+#    sdk-licenses.sh stayed with it because it writes that repository's own ledger files.
 export OO_PS4_TOOLCHAIN=~/.local/opt/openorbis     # an UNPACKED SDK: link.x AND lib/libc.a
-cd ~/src/orbis-ports/orbis-compat
-./build.sh                                          # NOT --no-check. Produces build/liborbis-compat.a
-COMPAT=$(git rev-parse HEAD)
+export ORBIS_COMPAT_DIR=~/src/orbis-ports/orbis-compat
+export ORBIS_KIT_DIR=~/src/orbis-ports/orbis-porting-kit
+(cd "$ORBIS_COMPAT_DIR" && ./build.sh)              # NOT --no-check. Produces build/liborbis-compat.a
+COMPAT=$(git -C "$ORBIS_COMPAT_DIR" rev-parse HEAD)
 
 # 1. Mesa, built against THIS orbis-compat. The pairing gate refuses anything else.
-cd ~/src/orbis-ports/mesa-ps4
-ORBIS_COMPAT_DIR=~/src/orbis-ports/orbis-compat ./ps4/build.sh
+(cd ~/src/orbis-ports/mesa-ps4 && ./ps4/build.sh)
 #    ...or download an existing bundle whose manifest.txt says orbis-compat-commit=$COMPAT:
 #    gh release download orbis-mesa-<sha> --repo orbis-ports/mesa-ps4 --pattern 'orbis-mesa-*.tar.gz'
 #    tar -xzf orbis-mesa-<sha>.tar.gz && MESA=$PWD/orbis-mesa-<sha>
 
 # 2. The licence ledger. Needs network once; after that it is offline forever.
-cd ~/src/orbis-ports/orbis-compat
-./scripts/release/sdk-licenses.sh fetch
-./scripts/release/sdk-licenses.sh notice
-./scripts/release/sdk-licenses.sh verify              # must say OK before anything is cut
-./scripts/release/sdk-licenses.sh verify --upstream   # optional; exit 3 means a pin moved
+$ORBIS_COMPAT_DIR/scripts/release/sdk-licenses.sh fetch
+$ORBIS_COMPAT_DIR/scripts/release/sdk-licenses.sh notice
+$ORBIS_COMPAT_DIR/scripts/release/sdk-licenses.sh verify              # must say OK before anything is cut
+$ORBIS_COMPAT_DIR/scripts/release/sdk-licenses.sh verify --upstream   # optional; exit 3 means a pin moved
 
-# 3. Cut it. Refuses on a dirty tree or a mismatched pair.
-./scripts/release/make-sdk-bundle.sh --version v1 --mesa "$MESA"
+# 3. Cut it. Refuses on a dirty tree or a mismatched pair. Run from the kit.
+cd "$ORBIS_KIT_DIR"
+./release/make-sdk-bundle.sh --version v1 --mesa "$MESA"
 #    -> $ORBIS_WORK/release/orbis-sdk-v1.tar.gz  (+ .sha256), BUNDLE.txt says gate=unproven
 
 # 4. Check what was cut, offline. Expect exit 4 INCOMPLETE here: gate=unproven is why.
-./scripts/release/verify-sdk-bundle.sh "$ORBIS_WORK/release/orbis-sdk-v1.tar.gz"
+./release/verify-sdk-bundle.sh "$ORBIS_WORK/release/orbis-sdk-v1.tar.gz"
 
 # 5. THE PUBLICATION GATE. Builds hello-world AND a real port from an UNPACKED copy.
-./scripts/release/bundle-gate.sh "$ORBIS_WORK/release/orbis-sdk-v1.tar.gz" \
+./release/bundle-gate.sh "$ORBIS_WORK/release/orbis-sdk-v1.tar.gz" \
      --port ~/src/orbis-ports/OpenGothic
 
 # 6. Re-cut with the gate recorded, and verify THAT tarball. This one must say OK, not
 #    INCOMPLETE. Step 5 stamps the unpacked copy, which necessarily breaks its SHA256SUMS
 #    line - a gate result is new information, so the bundle is a new artifact.
-ORBIS_BUNDLE_GATE=pass ./scripts/release/make-sdk-bundle.sh --version v1 --mesa "$MESA"
-./scripts/release/verify-sdk-bundle.sh "$ORBIS_WORK/release/orbis-sdk-v1.tar.gz"
+ORBIS_BUNDLE_GATE=pass ./release/make-sdk-bundle.sh --version v1 --mesa "$MESA"
+./release/verify-sdk-bundle.sh "$ORBIS_WORK/release/orbis-sdk-v1.tar.gz"
 ```
 
 Only after step 6 returns `OK` is there anything worth publishing.
@@ -74,14 +76,14 @@ both would make it possible to skip it by accident.
 ## The tests
 
 ```sh
-scripts/release/test/run.sh                 # 27 cases, ~30 s
-scripts/release/test/run.sh --list          # the case ids
-scripts/release/test/run.sh B2 B3 --keep    # one row of the pairing matrix, work tree preserved
-scripts/release/test/mutations.sh           # put each defect back and require the suite to go red
+release/test/run.sh                 # 27 cases, ~30 s
+release/test/run.sh --list          # the case ids
+release/test/run.sh B2 B3 --keep    # one row of the pairing matrix, work tree preserved
+release/test/mutations.sh           # put each defect back and require the suite to go red
 ```
 
 They need `build/liborbis-compat.a` and nothing else — no SDK, no Mesa bundle, no network, no
-console. `scripts/release/test/fixtures.sh` stands up a synthetic OpenOrbis SDK and a synthetic
+console. `release/test/fixtures.sh` stands up a synthetic OpenOrbis SDK and a synthetic
 unpacked Mesa bundle (the real `manifest.txt` shape, the real import names) plus a throwaway
 three-commit orbis-compat repository, and the cases drive the real `make-sdk-bundle.sh` and
 `verify-sdk-bundle.sh` end to end against them. A cut takes ~1.3 s that way against minutes for
@@ -102,7 +104,7 @@ toolchain and, for stage 5, a three-hour port build. Stages 0, 1 and 1b run for 
 the `INCOMPLETE` deadlock lived); the two defects past that point are covered by evaluating the
 real source line under the real shell options (the stage-4 `llvm-nm` count) and by a
 decoy-checked read of the real stage-5 invocation. `.github/workflows/release-scripts-test.yml`
-runs both scripts on every pull request that touches `scripts/release/`, with `--no-skips`,
+runs both scripts on every pull request that touches `release/`, with `--no-skips`,
 because a runner that just installed `llvm` has no honest reason to skip anything.
 
 ---
@@ -199,12 +201,12 @@ What was NOT exercised, and the exact command that would exercise it:
 | unproven | the command |
 |---|---|
 | `build.sh` produces a real `liborbis-compat.a` | `OO_PS4_TOOLCHAIN=<sdk> ./build.sh` on a host with `ld.lld llvm-ar llvm-ranlib` |
-| a real bundle is cut from real inputs | `./scripts/release/make-sdk-bundle.sh --version v1 --mesa <unpacked orbis-mesa-*>` |
-| the import-list check (verify step 5) | any of the above, then `./scripts/release/verify-sdk-bundle.sh <tarball>` on a host with `llvm-nm` |
-| hello-world CONFIGURES, LINKS and produces an `eboot.bin` | `./scripts/release/bundle-gate.sh <tarball>` |
+| a real bundle is cut from real inputs | `./release/make-sdk-bundle.sh --version v1 --mesa <unpacked orbis-mesa-*>` |
+| the import-list check (verify step 5) | any of the above, then `./release/verify-sdk-bundle.sh <tarball>` on a host with `llvm-nm` |
+| hello-world CONFIGURES, LINKS and produces an `eboot.bin` | `./release/bundle-gate.sh <tarball>` |
 | the link line names only bundle paths | the same run — it is stage 4 of that script |
 | `--whole-archive` actually pulled the overlay in | the same run — stage 4's `llvm-nm` check on the linked image |
-| a real port builds from the unpacked bundle | `./scripts/release/bundle-gate.sh <tarball> --port ~/src/orbis-ports/OpenGothic` |
+| a real port builds from the unpacked bundle | `./release/bundle-gate.sh <tarball> --port ~/src/orbis-ports/OpenGothic` |
 | `.github/workflows/sdk-bundle.yml` | push the branch, or `gh workflow run sdk-bundle.yml` |
 
 ⚠ **Expect the first real run of `bundle-gate.sh` to fail, and expect it to fail in stage 5.**
@@ -225,9 +227,43 @@ and its header says why. That reasoning is correct there and wrong here; the lon
 
 The import-list assertion the three sibling repositories carry checks that every name Mesa
 imports is **still defined**. Its own comment states the limit: *"presence, not meaning.
-Constants inlined at Mesa's compile time leave no symbol to check at all."* Between the
-orbis-compat Mesa was last built against and HEAD there are 14 commits and 362 changed lines
-under `include/` — `signal.h` +135, `sys/umtx.h` +48, `orbis_thread.h` +56. A struct that
+Constants inlined at Mesa's compile time leave no symbol to check at all."* A struct that
 changed size does not change a symbol name. mesa-ps4 can accept that because its consumer is a
 build it controls; a stranger with one tarball cannot accept it, cannot detect it, and would
 have no idea which half to suspect.
+
+## How the pair is actually decided: `include/` content, not commit ids
+
+⚠ **The pairing test is a content fingerprint, and the commit ids are only a diagnostic.**
+`_include_sha256` — defined at the top of `make-sdk-bundle.sh` and stated there once in prose —
+is `sha256` over the concatenation of `"<sha256 of file>  <path>\n"` for every regular file
+under `include/`, paths relative to the checkout, ordered by `LC_ALL=C sort`. Paths are inside
+the hash, so a header that only MOVED changes it, which matters because Mesa's `-isystem` search
+order turns a move into a different compile.
+
+That number is recorded in three places that cannot share a file — Mesa is built on a runner,
+the bundle is cut on another machine, and a stranger verifies holding nothing but the tarball:
+
+| where | what it records |
+|---|---|
+| `mesa-ps4` release workflow, step "Manifest" | the `include/` Mesa ACTUALLY compiled |
+| `release/make-sdk-bundle.sh` | the `include/` this bundle is about to ship |
+| `release/verify-sdk-bundle.sh` | recomputed offline from the unpacked bundle |
+
+The three are compared for equality, so drift between the copies of the algorithm reads as a
+mismatched pair and refuses a bundle that is fine. Change all three in one commit or not at all.
+
+`BUNDLE.txt` records the verdict as `pairing=ok|MISMATCH` and the reason as
+`pairing-basis=same-commit|include-sha-match`. The second value is the case that commit ids get
+wrong in the safe direction: Mesa built against an older commit whose `include/` is byte for byte
+what is shipping. The pair is coherent and the bundle is cut.
+
+⚠ **And the case no commit test can catch at all**: identical commit ids with different header
+bytes — a dirty tree, a hand-patched header, a cache restored over the wrong ref. There the
+commit-drift figures read "0 commits, no change under `include/`" under a refusal, which looks
+like a bug in the script rather than the thing it just caught, so `make-sdk-bundle.sh` prints
+what happened instead of the drift.
+
+Commit drift is still printed when the fingerprints differ AND the commits do, because "14
+commits, 8 files changed, 362 insertions(+) under `include/`" tells a reader which way to
+rebuild. It is a message, not the test.

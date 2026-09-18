@@ -75,6 +75,20 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# ⚠ THE SAME KEG bundle-gate.sh STAGE 0 LOOKS FOR, AND FOR THE SAME REASON. Homebrew's llvm is
+# keg-only, so llvm-nm is installed and not on PATH; D3 and F1 then skipped on a Mac that had every
+# tool they need, which turned "2 skipped" into background noise instead of information. A skip is
+# still the honest answer where llvm really is absent - this only stops it being the answer where it
+# is merely unlinked.
+if [ "$(uname -s)" = Darwin ]; then
+  for _llvmbin in "$( (brew --prefix llvm) 2>/dev/null)/bin" /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin; do
+    [ -x "$_llvmbin/llvm-nm" ] || continue
+    case ":$PATH:" in *":$_llvmbin:"*) ;; *) PATH="$_llvmbin:$PATH"; export PATH ;; esac
+    break
+  done
+  unset _llvmbin
+fi
+
 # ------------------------------------------------------------------ harness
 C_OK=$'\033[1;32m'; C_NO=$'\033[1;31m'; C_SK=$'\033[1;33m'; C_HD=$'\033[1;34m'; C_Z=$'\033[0m'
 [ -t 1 ] || { C_OK=""; C_NO=""; C_SK=""; C_HD=""; C_Z=""; }
