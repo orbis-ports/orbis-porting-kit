@@ -92,6 +92,18 @@ jobs:
           [ -n "$eboot" ] || { echo "!! no eboot.bin: the toolchain file configured but produced no image" >&2; exit 1; }
           ls -l "$eboot"; file "$eboot" || true
 
+      # ⚠ COMPILED FOR THE CONSOLE, WITH NO ENGINE AROUND THEM. That is the whole assertion: these
+      # were lifted out of a game, and a service that only compiles inside the tree it came from was
+      # not extracted, it was moved twice.
+      - name: The platform services compile on their own
+        run: |
+          set -euo pipefail
+          cmake -S services -B build-services -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/cmake/ps4-openorbis.cmake"
+          cmake --build build-services
+          ar t build-services/liborbis-services.a
+          llvm-nm -g --defined-only build-services/liborbis-services.a | grep -c 'orbis' || true
+
       - uses: actions/upload-artifact@v4
         with:
           name: triangle
