@@ -1,14 +1,24 @@
-orbis-compat is MIT-licensed, with two named exceptions. Both files say so in their own
-headers; each file's SPDX-License-Identifier is authoritative for that file.
+orbis-porting-kit is MIT-licensed, with ONE named exception. That file says so in its own
+header; each file's SPDX-License-Identifier is authoritative for that file.
 
   cmake/orbis-tls.ld     GPL-3.0-only. It is the OpenOrbis PS4 Toolchain's own link.x (release
                          v0.5.4, asset toolchain-llvm-18.tar.gz) with two match patterns added to
                          the .tls rule. That toolchain is GPL-3.0 and grants no linking exception,
-                         so this derivative cannot be relicensed. It carried an MIT header until
-                         2026-09-17; that header was wrong.
+                         so this derivative cannot be relicensed by the person deriving it. It
+                         carried an MIT header until 2026-09-17; that header was wrong.
 
-  include/sys/ioccom.h   BSD-3-Clause. Its macros follow FreeBSD's sys/sys/ioccom.h because they
-                         encode an ABI and cannot be written differently and still work.
+                         ⚠ IT IS ON EVERY CONSUMER'S LINK LINE, and the honest statement of what
+                         that means is this: a linker script DIRECTS the linker, it is not linked
+                         into the output, so no part of this file ends up in a title built with it.
+                         That is the reading; it is not legal advice, and anyone shipping a
+                         closed-source title should satisfy themselves rather than take a README's
+                         word for it.
+
+  services/              Extracted on 2026-09-18 from orbis-ports/OpenGothic (ps4/og_sound_orbis.cpp,
+                         ps4/og_ps4_ime.cpp, ps4/og_ps4_boot.cpp), which is MIT, and written by the
+                         same author as this repository. The one piece in those files that was NOT
+                         his - an IMA-ADPCM decoder lifted from Tempest, also MIT - was deliberately
+                         left behind, because it is a codec rather than a platform service.
 
 The MIT terms below cover everything else in this repository.
 

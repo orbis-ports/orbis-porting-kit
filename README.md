@@ -4,10 +4,23 @@ Everything a project needs to add a PlayStation 4 target without becoming a fork
 setup, the CI that installs it, the Vulkan loader shim, and a worked example that builds and
 packages.
 
-⚠ **This repository is in its copy phase and is private for that reason.** Nothing here is stable
-enough to pin. The files below are verbatim copies of `orbis-ports/orbis-compat`, carried so that
-the existing ports keep building untouched while the boundary between "the kit" and "the overlay"
-is proven by building something. `scripts/check-copies.sh` fails the build if any of them drifts.
+⚠ **This is v1.x and it is still moving.** `v1.0.0` is a tag that does not move and is what to pin
+if you want today's shape; `v1` follows the newest `v1.x` and will change under you. A few files are
+still verbatim copies of `orbis-ports/orbis-compat`, carried so the existing ports keep building
+untouched while the boundary between "the kit" and "the overlay" settles - `scripts/check-copies.sh`
+fails the build if any of them drifts, and the list is meant to reach zero.
+
+```yaml
+- uses: orbis-ports/orbis-porting-kit/.github/actions/setup-orbis@v1
+  with:
+    orbis-compat-ref: <sha>
+    mesa-release:     orbis-mesa-<sha>
+```
+
+That action is what every PS4 job in this organisation resolves its toolchain through. It exports
+`OO_PS4_TOOLCHAIN`, `ORBIS_COMPAT_DIR`, `ORBIS_MESA_SRC` and `ORBIS_MESA_BUILD`. For a plain CMake
+project, `.github/workflows/ps4-cmake.yml` is a whole job over it - its own header says which
+projects it is not for.
 
 ## Why a second repository at all
 
