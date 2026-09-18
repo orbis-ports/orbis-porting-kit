@@ -22,11 +22,42 @@ set(PS4_PACKAGE_CMAKE_INCLUDED TRUE)
 
 option(PS4_BUILD_PKG "Build a .pkg for every PS4 executable target" ON)
 
-get_filename_component(PS4_PACKAGE_SCRIPT_DIR "${CMAKE_CURRENT_LIST_DIR}/../scripts/ps4" ABSOLUTE)
+# ⚠ THE SCRIPTS ARE NOT NEXT TO THIS FILE ANY MORE. This was "../scripts/ps4", which was true while
+# cmake/ and scripts/ lived in one repository; cmake/ moved to the porting kit on 2026-09-18 and
+# scripts/ps4/ stayed in the overlay, so that path silently became kit/scripts/ps4 - which exists and
+# does NOT hold make-pkg.sh. The failure was a ninja error naming a missing file at the END of a
+# successful build, which is a long way from the line that chose the path.
+#
+# Resolved in order, and the sibling is LAST rather than first so that moving the scripts later
+# needs no third edit here.
+set(PS4_PACKAGE_SCRIPT_DIR "")
+foreach(_cand
+    "${ORBIS_COMPAT_DIR}/scripts/ps4"          # where make-pkg.sh lives today
+    "$ENV{ORBIS_COMPAT_DIR}/scripts/ps4"
+    "${ORBIS_KIT_DIR}/scripts/ps4"             # if they ever move to the kit
+    "$ENV{ORBIS_KIT_DIR}/scripts/ps4"
+    "${CMAKE_CURRENT_LIST_DIR}/../scripts/ps4")
+  if(_cand AND EXISTS "${_cand}/make-pkg.sh")
+    get_filename_component(PS4_PACKAGE_SCRIPT_DIR "${_cand}" ABSOLUTE)
+    break()
+  endif()
+endforeach()
+if(NOT PS4_PACKAGE_SCRIPT_DIR)
+  # Not fatal at include time: a project that never calls ps4_create_pkg() does not need this, and
+  # a configure-time refusal would block builds that are fine. ps4_create_pkg() names it below.
+  get_filename_component(PS4_PACKAGE_SCRIPT_DIR "${CMAKE_CURRENT_LIST_DIR}/../scripts/ps4" ABSOLUTE)
+endif()
 
 function(ps4_create_pkg target)
   if(NOT PS4_BUILD_PKG)
     return()
+  endif()
+  if(NOT EXISTS "${PS4_PACKAGE_SCRIPT_DIR}/make-pkg.sh")
+    message(FATAL_ERROR
+      "ps4_create_pkg(${target}) needs make-pkg.sh and looked in '${PS4_PACKAGE_SCRIPT_DIR}'. "
+      "Set ORBIS_COMPAT_DIR to the orbis-compat checkout (it ships scripts/ps4/), or turn "
+      "PS4_BUILD_PKG off. Failing here rather than at the end of the build, where it reads as a "
+      "missing ninja rule.")
   endif()
 
   cmake_parse_arguments(ARG "" "TITLE_ID;TITLE;VERSION;CONTENT_LABEL;ICON" "EXTRA_FILES" ${ARGN})
