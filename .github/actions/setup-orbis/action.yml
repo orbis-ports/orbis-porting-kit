@@ -174,8 +174,7 @@ runs:
         key: openorbis-${{ inputs.sdk-tag }}
 
     - name: Fetch OpenOrbis SDK
-      if: inputs.sdk-bundle == ''
-      if: steps.sdk-cache.outputs.cache-hit != 'true'
+      if: inputs.sdk-bundle == '' && steps.sdk-cache.outputs.cache-hit != 'true'
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
@@ -241,8 +240,7 @@ runs:
         key: orbis-compat-${{ inputs.orbis-compat-ref }}-${{ inputs.sdk-tag }}
 
     - name: Build orbis-compat
-      if: inputs.sdk-bundle == ''
-      if: steps.compat-cache.outputs.cache-hit != 'true'
+      if: inputs.sdk-bundle == '' && steps.compat-cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ${{ github.workspace }}/.orbis/orbis-compat
       run: |
