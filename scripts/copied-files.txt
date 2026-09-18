@@ -1,6 +1,8 @@
 # Files this repository carries as a VERBATIM COPY of orbis-ports/orbis-compat.
 #
-# One path per line, relative to both trees. check-copies.sh cmp's each against the
+# One path per line, relative to both trees - or `here -> there` when this repository files it
+# somewhere else, which the examples do (they live under scripts/release/ in the overlay because
+# the bundle cut reaches for them there). check-copies.sh cmp's each against the
 # orbis-compat checkout the build actually used, so a copy that drifts fails the run
 # rather than being discovered months later in a bug report.
 #
@@ -10,6 +12,14 @@
 # keys, different sanity lists) before anybody looked. The copies are here so the current
 # builds keep working while the boundary is proven, and they die when orbis-compat stops
 # shipping its own.
+# ⚠ NOT LISTED, AND ON PURPOSE: examples/triangle/. It was copied and then CHANGED - one
+# add_subdirectory now points at this repository's vkloader instead of the overlay's, which is the
+# only way an example here tests what a consumer of this repository would get. So there are two
+# triangles that can drift, and no test can stop them; what stops them is that the kit's is the one
+# CI builds and the overlay's dies with the bundle cut moving here. Named here rather than left for
+# somebody to find.
+#
+# examples/hello/ IS listed: it needs no Mesa and no loader, so it had nothing to adapt.
 vkloader/CMakeLists.txt
 vkloader/vkloader.c
 vkloader/vkloader.h
@@ -20,3 +30,6 @@ cmake/ps4-package.cmake
 cmake/orbis-compat.cmake
 cmake/orbis-tls.ld
 cmake/orbis.ini.in
+examples/hello/CMakeLists.txt -> scripts/release/hello/CMakeLists.txt
+examples/hello/hello.c -> scripts/release/hello/hello.c
+scripts/orbis-new.sh

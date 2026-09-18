@@ -95,6 +95,16 @@ jobs:
       # ⚠ COMPILED FOR THE CONSOLE, WITH NO ENGINE AROUND THEM. That is the whole assertion: these
       # were lifted out of a game, and a service that only compiles inside the tree it came from was
       # not extracted, it was moved twice.
+      # hello needs no Mesa, no loader and no shader compiler - that is its whole point, and why it
+      # is the example that says whether the LAYOUT is right when the graphics stack is what broke.
+      - name: hello, the layout check
+        run: |
+          set -euo pipefail
+          cmake -S examples/hello -B build-hello -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/cmake/ps4-openorbis.cmake"
+          cmake --build build-hello
+          find build-hello -name 'eboot.bin' -o -name '*.oelf' | sort
+
       - name: The platform services compile on their own
         run: |
           set -euo pipefail

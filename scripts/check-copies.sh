@@ -42,8 +42,13 @@ rc=0; n=0
 while IFS= read -r f; do
   case "$f" in ''|'#'*) continue ;; esac
   n=$((n + 1))
-  mine="$HERE/$f"; theirs="$COMPAT/$f"
-  if [ ! -f "$mine" ];   then echo "!! $f: missing HERE";                 rc=1; continue; fi
+  # `here -> there` when the two trees file it differently; a bare path means the same on both.
+  case "$f" in
+    *' -> '*) here_rel="${f%% -> *}"; there_rel="${f##* -> }" ;;
+    *)        here_rel="$f";          there_rel="$f" ;;
+  esac
+  mine="$HERE/$here_rel"; theirs="$COMPAT/$there_rel"
+  if [ ! -f "$mine" ];   then echo "!! $here_rel: missing HERE";                 rc=1; continue; fi
   if [ ! -f "$theirs" ]; then echo "!! $f: missing in orbis-compat - if it was deleted there, delete the line too"; rc=1; continue; fi
   if cmp -s "$mine" "$theirs"; then
     echo "ok $f"
