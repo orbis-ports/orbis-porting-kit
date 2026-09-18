@@ -341,11 +341,18 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 # survive, because the environment does.
 export OO_PS4_TOOLCHAIN="${OO_PS4_TOOLCHAIN:-$HOME/.local/opt/openorbis}"
 export ORBIS_COMPAT_DIR="${ORBIS_COMPAT_DIR:-__COMPAT__}"
+export ORBIS_KIT_DIR="${ORBIS_KIT_DIR:-__KIT__}"
 
 DEPLOY=""
 [ "${1:-}" = "--deploy" ] && DEPLOY="${2:-}"
 
-CM=(-DCMAKE_TOOLCHAIN_FILE="$ORBIS_COMPAT_DIR/cmake/ps4-openorbis.cmake" -DPS4_BUILD_PKG=ON)
+# The toolchain file is the kit's since 2026-09-18; the overlay is the fallback for a checkout or
+# bundle older than that. ORBIS_CMAKE_TOOLCHAIN is what orbis-env.sh exports, so a caller that
+# sourced it has already answered this.
+_tc="${ORBIS_CMAKE_TOOLCHAIN:-}"
+[ -n "$_tc" ] && [ -f "$_tc" ] || _tc="$ORBIS_KIT_DIR/cmake/ps4-openorbis.cmake"
+[ -f "$_tc" ] || _tc="$ORBIS_COMPAT_DIR/cmake/ps4-openorbis.cmake"
+CM=(-DCMAKE_TOOLCHAIN_FILE="$_tc" -DORBIS_KIT_DIR="$ORBIS_KIT_DIR" -DPS4_BUILD_PKG=ON)
 [ -n "${ORBIS_MESA_SRC:-}" ]   && CM+=(-DORBIS_MESA_SRC="$ORBIS_MESA_SRC")
 [ -n "${ORBIS_MESA_BUILD:-}" ] && CM+=(-DORBIS_MESA_BUILD="$ORBIS_MESA_BUILD")
 
@@ -359,7 +366,10 @@ if [ -n "$DEPLOY" ] && [ -n "$pkg" ]; then
   "${ORBIS_KIT_DIR:-$ORBIS_COMPAT_DIR}/scripts/ps4/deploy.sh" --pkg "$pkg" --name "$(basename "$HERE")" --host "$DEPLOY"
 fi
 BUILDSH
-sed -i.bak "s|__COMPAT__|$COMPAT|" "$PROJ/build.sh" && rm -f "$PROJ/build.sh.bak"
+# ⚠ TWO PLACEHOLDERS, AND $KIT/$COMPAT ARE THE GENERATOR'S VARIABLES, NOT THE GENERATED SCRIPT'S.
+# Writing "$KIT" straight into the template produced a build.sh that died with "KIT: unbound
+# variable" on its first run - caught locally, which is where this kind of thing belongs.
+sed -i.bak -e "s|__COMPAT__|$COMPAT|" -e "s|__KIT__|$KIT|" "$PROJ/build.sh" && rm -f "$PROJ/build.sh.bak"
 chmod +x "$PROJ/build.sh"
 
 printf 'build/\n*.pkg\n*.oelf\neboot.bin\n' > "$PROJ/.gitignore"
