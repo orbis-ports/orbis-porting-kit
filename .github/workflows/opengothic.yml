@@ -1,8 +1,20 @@
 # Phase 2: a real port, built with this repository's files instead of orbis-compat's.
 #
-# triangle proves the kit can build something written for it. This proves it can build something
-# that was NOT written for it - OpenGothic, unmodified, at its own pinned commit. That is the only
-# test that answers the question this repository exists to ask.
+# ⚠ READ WHAT THIS DOES AND DOES NOT CLAIM. An earlier version of this header said it builds
+# "something that was NOT written for it". That was false and worth correcting in place:
+# orbis-ports/OpenGothic @ ps4-support IS the port - about 390 lines of `if PS4` in game code, some
+# 2800 lines of PS4-only services under ps4/, and lib/Tempest is the fork carrying a 594-line Orbis
+# SystemApi backend. Nothing here is a stranger's engine.
+#
+# What it does prove, which is narrower and still worth a run: this repository's cmake/ and
+# vkloader/ can stand in for the overlay's in a real, non-trivial build, with the overlay's copies
+# ABSENT rather than shadowed - and the port needs no patch to accept them.
+#
+# The test that would prove the rest needs an engine with no PS4 support at all. The three sitting
+# in this org - Panda3DS, 3dsTrident, dynarmic - are all JIT emulators and would land on the
+# executable-memory arena that does not exist yet; the other route is an SDL2 game, and the SDL
+# orbis backend is currently vendored inside sonic3air. So that test is blocked on kit backlog
+# items 4 and 5, not on picking a different repository.
 #
 # ⚠ HOW THE SUBSTITUTION IS MADE HONEST. orbis-compat is checked out by setup-orbis as usual, and a
 # `composed/` tree is assembled beside it: a symlink to every entry of that checkout EXCEPT cmake/
