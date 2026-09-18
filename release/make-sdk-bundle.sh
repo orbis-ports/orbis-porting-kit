@@ -158,7 +158,10 @@ log "inputs"
   "SDK at '$SDK' has no link.x AND lib/libc.a. A source checkout of the toolchain repository
    has link.x and no lib/ - that is a stash, not an SDK. OO_PS4_TOOLCHAIN on a developer
    machine is quite likely pointing at one. Unpack toolchain-llvm-18.tar.gz instead."
-[ -f "$COMPAT/cmake/ps4-openorbis.cmake" ] || die "'$COMPAT' is not an orbis-compat checkout"
+# ⚠ BY A HEADER THE OVERLAY OWNS. This tested cmake/ps4-openorbis.cmake, which moved to this
+# repository on 2026-09-18 - so the check would refuse every correct overlay and accept a kit.
+[ -f "$COMPAT/include/orbis_prefix.h" ] || die "'$COMPAT' is not an orbis-compat checkout (no include/orbis_prefix.h)"
+[ -f "$KIT/cmake/ps4-openorbis.cmake" ] || die "'$KIT' is not an orbis-porting-kit checkout (no cmake/ps4-openorbis.cmake)"
 [ -f "$COMPAT/build/liborbis-compat.a" ] || die \
   "no '$COMPAT/build/liborbis-compat.a'. Run ./build.sh first - and do NOT pass --no-check:
    a silently wrong overlay is exactly what a bundle would then distribute."
