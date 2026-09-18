@@ -435,7 +435,7 @@ cp -a "$COMPAT/LICENSING.md" "$STAGE/LICENSING.md"
 
 # --- the one file a consumer points CMake at, plus the meson equivalent ---
 cp -a "$HERE/templates/orbis-sdk.cmake" "$STAGE/toolchain/orbis-sdk.cmake"
-cp -a "$COMPAT/cmake/orbis-tls.ld"      "$STAGE/toolchain/orbis-tls.ld"
+cp -a "$KIT/cmake/orbis-tls.ld"         "$STAGE/toolchain/orbis-tls.ld"
 # The meson cross file, substituted for THIS bundle's layout. The template is the repository's
 # own cmake/orbis.ini.in, so the two stay one file and cannot drift apart.
 mkdir -p "$STAGE/toolchain/cross"
@@ -443,7 +443,7 @@ sed -e 's|@OO_PS4_TOOLCHAIN@|__BUNDLE__/sdk|g' \
     -e 's|@ORBIS_COMPAT@|__BUNDLE__/orbis-compat|g' \
     -e 's|@ORBIS_KIT@|__BUNDLE__/orbis-compat|g' \
     -e 's|@ORBIS_CROSS@|__BUNDLE__/toolchain/cross|g' \
-    "$COMPAT/cmake/orbis.ini.in" > "$STAGE/toolchain/orbis.ini.in"
+    "$KIT/cmake/orbis.ini.in" > "$STAGE/toolchain/orbis.ini.in"
 mkdir -p "$STAGE/toolchain/cross/lib/pkgconfig"
 : > "$STAGE/toolchain/cross/lib/pkgconfig/.keep"
 cp -a "$HERE/templates/env.sh"          "$STAGE/env.sh"
