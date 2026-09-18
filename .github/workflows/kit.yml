@@ -1,0 +1,92 @@
+# The kit builds something with its own copies, or the copies are worth nothing.
+#
+# Two jobs, and the order is deliberate: `copies` needs no SDK, no Mesa and no network beyond a
+# checkout, so it still answers when the toolchain download is what broke. `triangle` is the one
+# that matters - it configures with THIS repository's cmake/ps4-openorbis.cmake and links THIS
+# repository's vkloader, so a copy that rotted is a red build rather than a surprise for whoever
+# adopts the kit first.
+#
+# ⚠ WHAT THIS DOES NOT YET PROVE. The toolchain file reaches back into ORBIS_COMPAT_DIR for
+# cmake/orbis-tls.ld and cmake/orbis-compat.cmake (see ps4-openorbis.cmake:107 and :201), so the
+# kit's copies of those two are carried but not exercised. Closing that is phase 2, not a thing to
+# paper over here.
+name: kit
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# ⚠ SHAS, NEVER BRANCHES. A cache key that can mean two different trees serves yesterday's overlay
+# against today's headers, and that failure mode has already cost this project a day.
+#
+# The Mesa release is the one OpenGothic and RetroArch are pinned to today. It was built against
+# orbis-compat cc75949, and ORBIS_COMPAT_REF below is newer - that is the same pair every port in
+# the org builds green with, because `git diff cc75949..6af90a8 -- include/` is empty.
+env:
+  ORBIS_COMPAT_REF: 6af90a8600464af4e29b384a9533e8284c14c625
+  MESA_RELEASE: orbis-mesa-4c934ebf9cda
+
+jobs:
+  copies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: kit
+      - uses: actions/checkout@v4
+        with:
+          repository: orbis-ports/orbis-compat
+          ref: ${{ env.ORBIS_COMPAT_REF }}
+          path: orbis-compat
+      - name: Every copy is byte-identical to the overlay it was taken from
+        run: kit/scripts/check-copies.sh --compat "$GITHUB_WORKSPACE/orbis-compat"
+
+  triangle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: glslang
+        # The SDK ships no shader compiler and neither does the kit: SPIR-V is built here and
+        # embedded, so the console loads no files.
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y -o Acquire::Retries=3
+          sudo apt-get install -y -o Acquire::Retries=3 glslang-tools
+
+      - name: The toolchain, the overlay and Mesa
+        id: orbis
+        uses: ./.github/actions/setup-orbis
+        with:
+          orbis-compat-ref: ${{ env.ORBIS_COMPAT_REF }}
+          mesa-release: ${{ env.MESA_RELEASE }}
+
+      - name: Configure and build with the kit's own toolchain file and vkloader
+        run: |
+          set -euo pipefail
+          cmake -S examples/triangle -B build -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/cmake/ps4-openorbis.cmake" \
+            -DORBIS_KIT_DIR="$GITHUB_WORKSPACE"
+          cmake --build build
+
+      - name: What came out
+        # An eboot that exists is the claim; its size and its type are the evidence. A build that
+        # "succeeded" and produced nothing is a real failure mode here - create-fself resolving to
+        # nothing used to be a warning, and the run carried on past it.
+        run: |
+          set -euo pipefail
+          find build -name 'eboot.bin' -o -name '*.elf' -o -name '*.oelf' | sort
+          eboot="$(find build -name 'eboot.bin' | head -1)"
+          [ -n "$eboot" ] || { echo "!! no eboot.bin: the toolchain file configured but produced no image" >&2; exit 1; }
+          ls -l "$eboot"; file "$eboot" || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: triangle
+          path: |
+            build/**/eboot.bin
+            build/**/*.pkg
+          if-no-files-found: warn

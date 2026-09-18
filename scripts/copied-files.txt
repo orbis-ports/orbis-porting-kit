@@ -1,0 +1,22 @@
+# Files this repository carries as a VERBATIM COPY of orbis-ports/orbis-compat.
+#
+# One path per line, relative to both trees. check-copies.sh cmp's each against the
+# orbis-compat checkout the build actually used, so a copy that drifts fails the run
+# rather than being discovered months later in a bug report.
+#
+# ⚠ THIS LIST IS MEANT TO SHRINK TO NOTHING. Every line is a file with two homes, and two
+# homes is the failure this whole repository exists to end: the setup-orbis action lived in
+# three repositories at once and had already drifted (317 lines against 332, different cache
+# keys, different sanity lists) before anybody looked. The copies are here so the current
+# builds keep working while the boundary is proven, and they die when orbis-compat stops
+# shipping its own.
+vkloader/CMakeLists.txt
+vkloader/vkloader.c
+vkloader/vkloader.h
+vkloader/vkthunks.c
+vkloader/gen.py
+cmake/ps4-openorbis.cmake
+cmake/ps4-package.cmake
+cmake/orbis-compat.cmake
+cmake/orbis-tls.ld
+cmake/orbis.ini.in
