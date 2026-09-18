@@ -19,10 +19,18 @@
 # orbis-compat, because they are the overlay and they are not the kit's to own. A kit that stood
 # alone would have to pin and fetch them itself; composing them here is the honest shape of the
 # dependency, not a workaround for it.
+# ⚠ ON DEMAND, NEVER ON PUSH, AND THE REASON IS NOT RUNNER MINUTES. A kit that builds its
+# consumers on every commit has taken over their builds: a red run here would mean "somebody
+# else's port broke", which is not this repository's to report, and the responsibility runs
+# backwards from where it belongs. The consumers build themselves, pointing at a pinned commit of
+# this repository; that is the arrangement this whole repository is for.
+#
+# It stays as a CONFORMANCE TEST, run deliberately - before moving the copy boundary, before
+# publishing the action, before anything structural - because the kit does have to know it can
+# still build something that was not written for it.
 name: opengothic-on-the-kit
 
 on:
-  push:
   workflow_dispatch:
     inputs:
       opengothic-ref:
