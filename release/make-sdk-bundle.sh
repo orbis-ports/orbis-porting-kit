@@ -390,6 +390,12 @@ done
 # Changing where a bundle puts them is a separate decision from where they are developed.
 cp -a "$KIT/cmake"    "$STAGE/orbis-compat/cmake"
 cp -a "$KIT/vkloader" "$STAGE/orbis-compat/vkloader"
+# scripts/ps4/ joined them on 2026-09-18 - make-pkg.sh, deploy.sh, logs.sh and orbis-env.sh are
+# things a person runs, so they are the kit's. The bundle path is unchanged for the same reason as
+# above: verify-sdk-bundle.sh checks orbis-compat/scripts/ps4/make-pkg.sh by name, and so may a
+# consumer's build script.
+mkdir -p "$STAGE/orbis-compat/scripts"
+cp -a "$KIT/scripts/ps4" "$STAGE/orbis-compat/scripts/ps4"
 cp -a "$COMPAT/LICENSE" "$COMPAT/README.md" "$STAGE/orbis-compat/"
 [ -f "$COMPAT/build.sh" ] && cp -a "$COMPAT/build.sh" "$STAGE/orbis-compat/"
 mkdir -p "$STAGE/orbis-compat/build"

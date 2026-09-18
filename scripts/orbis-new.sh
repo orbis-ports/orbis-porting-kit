@@ -22,7 +22,22 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-COMPAT="$(cd "${HERE}/.." && pwd -P)"
+
+# ⚠ TWO REPOSITORIES SINCE 2026-09-18, AND THIS SCRIPT IS IN THE SECOND ONE. KIT is where this file
+# lives - the toolchain file, the loader shim, the examples and the packaging scripts. COMPAT is the
+# overlay, which ships include/ and build/liborbis-compat.a and nothing a person runs. `COMPAT`
+# used to mean both, and after the split it would have meant the kit while still being spelled like
+# the overlay - so both are named here and neither is inferred anywhere below.
+KIT="$(cd "${HERE}/.." && pwd -P)"
+COMPAT="${ORBIS_COMPAT_DIR:-}"
+if [ -z "$COMPAT" ]; then
+  for _c in "${KIT}/../orbis-compat" "$HOME/src/orbis-ports/orbis-compat" "$HOME/src-ps4/orbis-compat"; do
+    if [ -f "$_c/include/orbis_prefix.h" ]; then COMPAT="$(cd "$_c" && pwd -P)"; break; fi
+  done
+fi
+# Left empty on purpose when nothing was found: --check reports it as the missing dependency it is,
+# with the clone line, rather than printing a path that does not exist as though it did.
+COMPAT="${COMPAT:-}"
 OS="$(uname -s)"
 
 NAME=""; TYPE="c"; DEST="$PWD"; CHECK_ONLY=0
@@ -218,7 +233,7 @@ add_executable($NAME $SRC)
 CMAKE
 
 if [ "$TYPE" = vulkan ]; then
-  cp "$COMPAT/scripts/release/triangle/tri.vert" "$COMPAT/scripts/release/triangle/tri.frag" "$PROJ/"
+  cp "$KIT/examples/triangle/tri.vert" "$KIT/examples/triangle/tri.frag" "$PROJ/"
   cat >> "$PROJ/CMakeLists.txt" <<'CMAKE'
 
 # Shaders are compiled to SPIR-V here and embedded, so the console reads no files.
@@ -271,7 +286,7 @@ ps4_create_pkg($NAME TITLE_ID $TITLEID TITLE "$NAME")
 CMAKE
 
 if [ "$TYPE" = vulkan ]; then
-  sed -e "s/^int main(void)/int main(void)/" "$COMPAT/scripts/release/triangle/triangle.c" > "$PROJ/main.c"
+  sed -e "s/^int main(void)/int main(void)/" "$KIT/examples/triangle/triangle.c" > "$PROJ/main.c"
 else
   EXT_OPEN=""; EXT_CLOSE=""
   [ "$TYPE" = cpp ] && { EXT_OPEN='extern "C" {'; EXT_CLOSE='}'; }
@@ -341,7 +356,7 @@ pkg="$(find "$HERE/build" -name '*.pkg' -print -quit)"
 [ -n "$pkg" ] && echo "== package: $pkg"
 
 if [ -n "$DEPLOY" ] && [ -n "$pkg" ]; then
-  "$ORBIS_COMPAT_DIR/scripts/ps4/deploy.sh" --pkg "$pkg" --name "$(basename "$HERE")" --host "$DEPLOY"
+  "${ORBIS_KIT_DIR:-$ORBIS_COMPAT_DIR}/scripts/ps4/deploy.sh" --pkg "$pkg" --name "$(basename "$HERE")" --host "$DEPLOY"
 fi
 BUILDSH
 sed -i.bak "s|__COMPAT__|$COMPAT|" "$PROJ/build.sh" && rm -f "$PROJ/build.sh.bak"
@@ -352,14 +367,15 @@ printf 'build/\n*.pkg\n*.oelf\neboot.bin\n' > "$PROJ/.gitignore"
 cat > "$PROJ/README.md" <<RDM
 # $NAME
 
-A PlayStation 4 program, built with the OpenOrbis SDK and [orbis-compat]($COMPAT).
+A PlayStation 4 program, built with the OpenOrbis SDK, [orbis-porting-kit]($KIT) and the
+[orbis-compat]($COMPAT) overlay.
 
 \`\`\`sh
 ./build.sh                            # build and package
 ./build.sh --deploy 192.168.1.50      # and put it on the console
 \`\`\`
 
-Then install it from the console's package menu. \`$COMPAT/scripts/ps4/logs.sh\` catches the output.
+Then install it from the console's package menu. \`$KIT/scripts/ps4/logs.sh\` catches the output.
 
 Title id is \`$TITLEID\`, generated at random. ⚠ **Change it if you publish anything**: two packages
 sharing a title id overwrite each other on the console.
@@ -371,7 +387,7 @@ Three things about this platform that are not obvious, all of them in the genera
   \`try_compile\`, which is where the toolchain file is read a second time.
 * **Do not link \`orbis::compat\` yourself.** The toolchain file already force-loads it.
 
-\`$COMPAT/README.md\` section 0 is the full workflow; section 2 is what the overlay corrects and why.
+\`$KIT/README.md\` is the kit; \`$COMPAT/README.md\` section 2 is what the overlay corrects and why.
 RDM
 
 echo

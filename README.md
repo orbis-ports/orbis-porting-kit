@@ -44,8 +44,11 @@ only `<orbis/libkernel.h>` and Mesa's headers - no overlay API at all, which is 
 ## What is here now
 
 ```
-vkloader/          the Vulkan C ABI over RADV's three ICD symbols (copy)
-cmake/             the CMake toolchain file and friends (copy)
+vkloader/          the Vulkan C ABI over RADV's three ICD symbols
+cmake/             the CMake toolchain file, the packaging rules, the linker script
+scripts/ps4/       make-pkg.sh, deploy.sh, logs.sh, orbis-env.sh - what a person runs
+scripts/orbis-new.sh   the dependency doctor (--check) and the project generator
+release/           the bundle: cut, offline verify, publication gate, 27 tests
 services/          audio, ime, data - the console half of what a port needs (extracted)
 examples/triangle/ a triangle on the television, built from this repository's own copies
 .github/actions/setup-orbis/   installs SDK + overlay + Mesa, exports four variables
@@ -63,9 +66,10 @@ The second one also exercises the two copies the first could not reach:
 `cmake/ps4-openorbis.cmake` takes `orbis-compat.cmake` and `orbis-tls.ld` from `ORBIS_COMPAT_DIR`
 (lines 107 and 201), which is the composed tree there, which is this repository.
 
-⚠ **What neither proves.** `include/`, `scripts/ps4/` and `build/liborbis-compat.a` still come from
-`orbis-compat`. They are the overlay and they are not the kit's to own; composing them is the shape
-of the dependency, not a workaround for it. A kit that stood alone would pin and fetch them itself.
+⚠ **What neither proves.** `include/` and `build/liborbis-compat.a` come from `orbis-compat`. They
+are the overlay and they are not the kit's to own; composing them is the shape of the dependency,
+not a workaround for it. A kit that stood alone would pin and fetch them itself. (`scripts/ps4/`
+was in that sentence until 2026-09-18 and is here now.)
 
 ⚠ **And one gap the first run found the hard way.** `setup-orbis` exports `ORBIS_MESA_SRC` and
 `ORBIS_MESA_BUILD` into the environment, but `vkloader/CMakeLists.txt` reads the CMake variables

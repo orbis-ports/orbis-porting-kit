@@ -148,7 +148,7 @@ jobs:
         if: inputs.title-id != ''
         run: |
           set -euo pipefail
-          "$ORBIS_COMPAT_DIR/scripts/ps4/make-pkg.sh" \
+          "$ORBIS_KIT_DIR/scripts/ps4/make-pkg.sh" \
             --eboot "${{ steps.eboot.outputs.path }}" \
             --out-dir "$RUNNER_TEMP/pkg" \
             --title-id "${{ inputs.title-id }}" \
