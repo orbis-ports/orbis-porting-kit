@@ -62,6 +62,13 @@ cpu_family = 'x86_64'
 cpu        = 'x86_64'
 endian     = 'little'
 
+# ⚠ TWO SUBSTITUTIONS SINCE 2026-09-18, AND THEY ARE DIFFERENT REPOSITORIES. @ORBIS_COMPAT@ is the
+# overlay - include/ and build/liborbis-compat.a. @ORBIS_KIT@ is orbis-ports/orbis-porting-kit,
+# which owns this template and the linker script named below. They were one path until the split,
+# and a generator that substitutes only the old one produces a cross file whose --script points at
+# a file that no longer exists: meson's link tests then fail for a reason that is not theirs, and
+# the first symptom was "ERROR: C shared or static library 'atomic' not found".
+#
 # ⚠ @ORBIS_COMPAT@ COMES FIRST, and it has to. orbis-compat's bits/alltypes.h corrects four pthread
 # types this SDK declares smaller than Sony writes, and it works by defining musl's own
 # __DEFINED_<name> guards before musl's copy is reached. Behind the SDK's directory it would compile,
@@ -104,8 +111,8 @@ cpp_args = ['--target=x86_64-pc-freebsd12-elf','--sysroot=@OO_PS4_TOOLCHAIN@','-
 # freebsd12-elf target - and Mesa's cc.find_library('elf') therefore reported YES. Every cc.find_library
 # in the tree was exposed to the same mistake. With --sysroot those paths become @OO_PS4_TOOLCHAIN@/usr/lib
 # and do not exist.
-c_link_args   = ['--target=x86_64-pc-freebsd12-elf','--sysroot=@OO_PS4_TOOLCHAIN@','-nostdlib','-fuse-ld=lld','-pie','-Wl,-m,elf_x86_64','-Wl,--script=@ORBIS_COMPAT@/cmake/orbis-tls.ld','-Wl,--eh-frame-hdr','-Wl,--no-rosegment','-L@OO_PS4_TOOLCHAIN@/lib','-L@ORBIS_COMPAT@/build','-lorbis-compat','-lc','-lkernel','-lc++','@OO_PS4_TOOLCHAIN@/lib/crt1.o']
-cpp_link_args = ['--target=x86_64-pc-freebsd12-elf','--sysroot=@OO_PS4_TOOLCHAIN@','-nostdlib','-fuse-ld=lld','-pie','-Wl,-m,elf_x86_64','-Wl,--script=@ORBIS_COMPAT@/cmake/orbis-tls.ld','-Wl,--eh-frame-hdr','-Wl,--no-rosegment','-L@OO_PS4_TOOLCHAIN@/lib','-L@ORBIS_COMPAT@/build','-lorbis-compat','-lc','-lkernel','-lc++','@OO_PS4_TOOLCHAIN@/lib/crt1.o']
+c_link_args   = ['--target=x86_64-pc-freebsd12-elf','--sysroot=@OO_PS4_TOOLCHAIN@','-nostdlib','-fuse-ld=lld','-pie','-Wl,-m,elf_x86_64','-Wl,--script=@ORBIS_KIT@/cmake/orbis-tls.ld','-Wl,--eh-frame-hdr','-Wl,--no-rosegment','-L@OO_PS4_TOOLCHAIN@/lib','-L@ORBIS_COMPAT@/build','-lorbis-compat','-lc','-lkernel','-lc++','@OO_PS4_TOOLCHAIN@/lib/crt1.o']
+cpp_link_args = ['--target=x86_64-pc-freebsd12-elf','--sysroot=@OO_PS4_TOOLCHAIN@','-nostdlib','-fuse-ld=lld','-pie','-Wl,-m,elf_x86_64','-Wl,--script=@ORBIS_KIT@/cmake/orbis-tls.ld','-Wl,--eh-frame-hdr','-Wl,--no-rosegment','-L@OO_PS4_TOOLCHAIN@/lib','-L@ORBIS_COMPAT@/build','-lorbis-compat','-lc','-lkernel','-lc++','@OO_PS4_TOOLCHAIN@/lib/crt1.o']
 
 [properties]
 pkg_config_libdir = '@ORBIS_CROSS@/lib/pkgconfig'

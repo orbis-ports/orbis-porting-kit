@@ -438,6 +438,7 @@ cp -a "$COMPAT/cmake/orbis-tls.ld"      "$STAGE/toolchain/orbis-tls.ld"
 mkdir -p "$STAGE/toolchain/cross"
 sed -e 's|@OO_PS4_TOOLCHAIN@|__BUNDLE__/sdk|g' \
     -e 's|@ORBIS_COMPAT@|__BUNDLE__/orbis-compat|g' \
+    -e 's|@ORBIS_KIT@|__BUNDLE__/orbis-compat|g' \
     -e 's|@ORBIS_CROSS@|__BUNDLE__/toolchain/cross|g' \
     "$COMPAT/cmake/orbis.ini.in" > "$STAGE/toolchain/orbis.ini.in"
 mkdir -p "$STAGE/toolchain/cross/lib/pkgconfig"
