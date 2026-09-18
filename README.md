@@ -38,11 +38,27 @@ examples/triangle/ a triangle on the television, built from this repository's ow
 scripts/check-copies.sh        every copy is byte-identical, or the build is red
 ```
 
-⚠ **The copies are not all exercised yet.** `cmake/ps4-openorbis.cmake` reaches into
-`ORBIS_COMPAT_DIR` for `cmake/orbis-tls.ld` and `cmake/orbis-compat.cmake` (lines 201 and 107), so
-those two copies are carried but dormant. The example does link this repository's `vkloader/` and
-does configure with this repository's toolchain file, which is what the first phase set out to
-prove.
+## What has been proven, and when
+
+| | what it shows |
+|---|---|
+| `kit` workflow, 2026-09-18 | `examples/triangle` configures with this repository's `ps4-openorbis.cmake` and links this repository's `vkloader/`. `eboot.bin`, 25 282 624 B. |
+| `opengothic-on-the-kit`, 2026-09-18 | **OpenGothic, unmodified, at its own pinned commit**, builds and packages against a tree where the overlay's `cmake/` and `vkloader/` are ABSENT and this repository's are in their place. `IV0000-TMPS10021_00-TEMPESTOPENGOTHI.pkg`, 51 314 688 B, and the port's checkout came back clean. |
+
+The second one also exercises the two copies the first could not reach:
+`cmake/ps4-openorbis.cmake` takes `orbis-compat.cmake` and `orbis-tls.ld` from `ORBIS_COMPAT_DIR`
+(lines 107 and 201), which is the composed tree there, which is this repository.
+
+⚠ **What neither proves.** `include/`, `scripts/ps4/` and `build/liborbis-compat.a` still come from
+`orbis-compat`. They are the overlay and they are not the kit's to own; composing them is the shape
+of the dependency, not a workaround for it. A kit that stood alone would pin and fetch them itself.
+
+⚠ **And one gap the first run found the hard way.** `setup-orbis` exports `ORBIS_MESA_SRC` and
+`ORBIS_MESA_BUILD` into the environment, but `vkloader/CMakeLists.txt` reads the CMake variables
+only - its own error says *"every entry point passes `-DORBIS_MESA_BUILD` explicitly; reaching this
+message means one did not"*. Every port solved that inside its own build script, which is exactly
+the duplication this repository exists to end. The helper that should solve it once does not exist
+yet.
 
 ## Licence
 
