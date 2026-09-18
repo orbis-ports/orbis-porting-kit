@@ -200,7 +200,12 @@ jobs:
           echo "MESA_BUNDLE=$root" >> "$GITHUB_ENV"
           sed -n '/^\[orbis-compat-imports\]/q;p' "$root/manifest.txt" | sed 's/^/   /'
 
+      # ⚠ IN THE OVERLAY'S CHECKOUT. sdk-licenses.sh stayed in orbis-compat when the cut moved here,
+      # because it WRITES that repository's licenses/, NOTICE.md and LICENSING.md. This step ran
+      # `./scripts/release/sdk-licenses.sh` from this repository's root and died with exit 127,
+      # which is what a path left behind by a move looks like.
       - name: The licence ledger, before anything is staged
+        working-directory: orbis-compat
         run: ./scripts/release/sdk-licenses.sh verify
 
       - name: Cut the bundle
