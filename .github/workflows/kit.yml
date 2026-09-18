@@ -67,9 +67,18 @@ jobs:
       - name: Configure and build with the kit's own toolchain file and vkloader
         run: |
           set -euo pipefail
+          # ⚠ -D, NOT THE ENVIRONMENT, FOR THE TWO MESA PATHS. setup-orbis exports ORBIS_MESA_SRC
+          # and ORBIS_MESA_BUILD into $GITHUB_ENV, but vkloader/CMakeLists.txt reads the CMake
+          # variables only - its own error says "every entry point passes -DORBIS_MESA_BUILD
+          # explicitly; reaching this message means one did not", and the first run of this
+          # workflow was exactly that. A kit whose entry point requires the caller to know this is
+          # a kit with a missing piece; the piece belongs in a helper here, and until it exists the
+          # workflow does what the other ports' build scripts already do.
           cmake -S examples/triangle -B build -G Ninja \
             -DCMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/cmake/ps4-openorbis.cmake" \
-            -DORBIS_KIT_DIR="$GITHUB_WORKSPACE"
+            -DORBIS_KIT_DIR="$GITHUB_WORKSPACE" \
+            -DORBIS_MESA_SRC="$ORBIS_MESA_SRC" \
+            -DORBIS_MESA_BUILD="$ORBIS_MESA_BUILD"
           cmake --build build
 
       - name: What came out
