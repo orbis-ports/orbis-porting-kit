@@ -33,6 +33,7 @@ only `<orbis/libkernel.h>` and Mesa's headers - no overlay API at all, which is 
 ```
 vkloader/          the Vulkan C ABI over RADV's three ICD symbols (copy)
 cmake/             the CMake toolchain file and friends (copy)
+services/          audio, ime, data - the console half of what a port needs (extracted)
 examples/triangle/ a triangle on the television, built from this repository's own copies
 .github/actions/setup-orbis/   installs SDK + overlay + Mesa, exports four variables
 scripts/check-copies.sh        every copy is byte-identical, or the build is red
@@ -59,6 +60,30 @@ only - its own error says *"every entry point passes `-DORBIS_MESA_BUILD` explic
 message means one did not"*. Every port solved that inside its own build script, which is exactly
 the duplication this repository exists to end. The helper that should solve it once does not exist
 yet.
+
+## The services, and what was left behind
+
+`services/` is the first thing here that is NOT a copy. It came out of OpenGothic's `ps4/`, which
+carries about 2800 lines that are not about Gothic - and on reading them, only about 780 are about
+the console:
+
+| service | from | kept | left in the game |
+|---|---|---|---|
+| `audio` | `og_sound_orbis.cpp` 1075 | 113 | Tempest `SoundDevice` backend, software mixer, resampler, IMA-ADPCM decoder |
+| `ime` | `og_ps4_ime.{h,cpp}` 361 | 350 | the save-dialog wiring |
+| `data` | `og_ps4_boot.cpp` 762 | 317 | ~450 lines of probes of that game's archives |
+
+The measured facts came across with the code, because they are most of its value: the audio port is
+48000 Hz and nothing else, grain is a multiple of 256 in 256..2048, `sceAudioOutOutput` blocks and
+is the only clock, and **a process gets one port** - which is an API constraint, not a detail. The
+IME's teardown ladder arrived with its own retraction attached: `0x80bc0008` was a settling time,
+not the per-process limit it was first recorded as.
+
+CI compiles all three for the console with no engine around them. A service that only compiles
+inside the tree it came from was moved twice, not extracted.
+
+⚠ **OpenGothic still builds its own copies and is untouched.** Switching it over is a separate
+change and belongs to a session with a console in front of it.
 
 ## Licence
 
