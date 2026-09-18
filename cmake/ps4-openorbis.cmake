@@ -241,8 +241,24 @@ set(PS4_LINK_FLAGS
 # --whole-archive because nothing REFERENCES an interposer: backtrace, __mmap and the rest exist to
 # be preferred over the SDK's definitions, and a linker pulls an archive member in only when
 # something already wants it.
+# ⚠ AND THE libc16 OBJECTS, WHICH ARE NOT OPTIONAL WHERE THEY EXIST. orbis-compat replaces the SDK
+# libc.a's wide-character members with 32-bit-wchar_t versions; three members that STAY - regcomp,
+# regexec, vfscanf - call mbtowc/mbrtowc with a two-byte wchar_t on their own stack, and regcomp
+# keeps a saved register right behind it. build/libc16/ holds copies of those three whose call is
+# renamed to __orbis_libc16_mbtowc/_mbrtowc, plus the SDK's original 16-bit definitions under those
+# names. Mesa's libgallium references regcomp for driconf, so this reaches every port with a
+# graphics stack.
+#
+# Objects rather than an archive, and AFTER the overlay: an object always wins, and these have to
+# beat libc.a's own members without displacing the 32-bit definitions everybody else resolves to.
+# Absent - an overlay built before 2026-09-18 - the line is simply shorter, because a bundle or a
+# pin from before that day also has no 32-bit wide members to protect anyone from.
+file(GLOB ORBIS_LIBC16_OBJECTS "${ORBIS_COMPAT_DIR}/build/libc16/libc16_*.o")
+list(SORT ORBIS_LIBC16_OBJECTS)
+string(JOIN " " ORBIS_LIBC16_LINK ${ORBIS_LIBC16_OBJECTS})
+
 set(CMAKE_EXE_LINKER_FLAGS_INIT
-  "${PS4_LINK_FLAGS} -Wl,--whole-archive ${ORBIS_COMPAT_LIBRARY} -Wl,--no-whole-archive")
+  "${PS4_LINK_FLAGS} -Wl,--whole-archive ${ORBIS_COMPAT_LIBRARY} -Wl,--no-whole-archive ${ORBIS_LIBC16_LINK}")
 
 # ---------------------------------------------------------------------------- ORBIS_CRT
 #
