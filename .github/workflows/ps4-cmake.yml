@@ -1,0 +1,166 @@
+# A whole PS4 job for a CMake project, in ten lines of the caller's YAML.
+#
+#   jobs:
+#     ps4:
+#       uses: orbis-ports/orbis-porting-kit/.github/workflows/ps4-cmake.yml@v1
+#       with:
+#         orbis-compat-ref: <sha>
+#         mesa-release:     orbis-mesa-<sha>
+#         title-id:         TMPS10099
+#         title:            My Game
+#
+# ⚠ THIS IS FOR PROJECTS THAT FIT IT, AND SAYING SO IS THE POINT. It configures with CMake, builds
+# one target, packages the eboot and uploads the .pkg. A project with its own build script - which
+# every port in this org has, because a real port ends up with one - should call setup-orbis
+# directly and keep its script. The action is the contract; this workflow is a convenience over it,
+# and a convenience that pretends to be the contract is how a kit starts dictating shapes.
+#
+# It does NOT publish a release. Deciding what to publish, and when, belongs to the repository that
+# owns the title.
+name: ps4-cmake
+
+on:
+  workflow_call:
+    inputs:
+      orbis-compat-ref:
+        description: orbis-compat commit to build against. A sha, never a branch.
+        required: true
+        type: string
+      mesa-release:
+        description: Release tag in orbis-ports/mesa-ps4 whose orbis-mesa-<sha>.tar.gz to consume.
+        required: true
+        type: string
+      sdk-tag:
+        required: false
+        type: string
+        default: v0.5.4
+      source-dir:
+        description: Directory holding the CMakeLists.txt to configure.
+        required: false
+        type: string
+        default: .
+      cmake-args:
+        description: Extra -D flags, one line.
+        required: false
+        type: string
+        default: ""
+      target:
+        description: Build this target instead of all.
+        required: false
+        type: string
+        default: ""
+      eboot:
+        description: Path to the eboot, relative to the build directory. Globbed when left empty.
+        required: false
+        type: string
+        default: ""
+      title-id:
+        description: Nine characters, e.g. TMPS10099. Required to package.
+        required: false
+        type: string
+        default: ""
+      title:
+        description: The name the console shows.
+        required: false
+        type: string
+        default: ""
+      submodules:
+        required: false
+        type: string
+        default: "false"
+      apt-packages:
+        description: Extra host packages, space separated. glslang-tools is the usual one.
+        required: false
+        type: string
+        default: ""
+      artifact-name:
+        required: false
+        type: string
+        default: ps4
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: ${{ inputs.submodules }}
+
+      - name: Host packages
+        if: inputs.apt-packages != ''
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y -o Acquire::Retries=3
+          sudo apt-get install -y -o Acquire::Retries=3 --no-install-recommends ${{ inputs.apt-packages }}
+
+      # The kit itself, for the toolchain file and the loader shim. Pinned to the ref this workflow
+      # was called at, so a caller gets ONE version of everything rather than a workflow from one
+      # commit and a toolchain file from another.
+      - uses: actions/checkout@v4
+        with:
+          repository: orbis-ports/orbis-porting-kit
+          ref: ${{ github.workflow_sha || 'main' }}
+          path: .orbis-kit
+
+      - uses: orbis-ports/orbis-porting-kit/.github/actions/setup-orbis@main
+        with:
+          sdk-tag: ${{ inputs.sdk-tag }}
+          orbis-compat-ref: ${{ inputs.orbis-compat-ref }}
+          mesa-release: ${{ inputs.mesa-release }}
+
+      - name: Configure and build
+        run: |
+          set -euo pipefail
+          kit="$GITHUB_WORKSPACE/.orbis-kit"
+          # ⚠ THE MESA PATHS GO IN AS -D AS WELL AS IN THE ENVIRONMENT. vkloader/CMakeLists.txt
+          # reads the CMake variables only, and its own error says every entry point passes them
+          # explicitly. Every port in this org rediscovered that inside its own build script.
+          cmake -S "${{ inputs.source-dir }}" -B build -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$kit/cmake/ps4-openorbis.cmake" \
+            -DORBIS_KIT_DIR="$kit" \
+            -DORBIS_MESA_SRC="$ORBIS_MESA_SRC" \
+            -DORBIS_MESA_BUILD="$ORBIS_MESA_BUILD" \
+            ${{ inputs.cmake-args }}
+          if [ -n "${{ inputs.target }}" ]; then
+            cmake --build build --target "${{ inputs.target }}"
+          else
+            cmake --build build
+          fi
+
+      # ⚠ ASSERT ON THE ARTEFACT, NOT ON THE EXIT STATUS. create-fself and make-pkg.sh have each
+      # been seen to exit 0 while producing nothing, and a green build with no eboot is the failure
+      # that reaches a person latest.
+      - name: The eboot exists
+        id: eboot
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.eboot }}" ]; then
+            e="build/${{ inputs.eboot }}"
+          else
+            e="$(find build -name 'eboot.bin' | head -1)"
+          fi
+          [ -n "$e" ] && [ -f "$e" ] || { echo "!! no eboot at ${e:-build/**/eboot.bin}" >&2; exit 1; }
+          ls -l "$e"
+          echo "path=$e" >> "$GITHUB_OUTPUT"
+
+      - name: Package
+        if: inputs.title-id != ''
+        run: |
+          set -euo pipefail
+          "$ORBIS_COMPAT_DIR/scripts/ps4/make-pkg.sh" \
+            --eboot "${{ steps.eboot.outputs.path }}" \
+            --out-dir "$RUNNER_TEMP/pkg" \
+            --title-id "${{ inputs.title-id }}" \
+            --title "${{ inputs.title || inputs.title-id }}"
+          ls -l "$RUNNER_TEMP/pkg"
+          find "$RUNNER_TEMP/pkg" -name '*.pkg' | head -1 | grep . \
+            || { echo "!! make-pkg.sh produced no .pkg" >&2; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: |
+            ${{ steps.eboot.outputs.path }}
+            ${{ runner.temp }}/pkg/*.pkg
+          if-no-files-found: error

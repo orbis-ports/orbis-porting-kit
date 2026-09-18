@@ -1,25 +1,44 @@
-# The four things every PS4 job needs on disk, resolved once.
+# The four things every PS4 job needs on disk, resolved once - for every repository, from here.
 #
-# Copied from orbis-ports/sonic3air (.github/actions/orbis-toolchain, itself from orbis-ports/RetroArch)
-# and adapted to this repository: the consumer here is ps4/build.sh (CMake). Kept a composite action
-# rather than inline YAML so every PS4 job in the org resolves the toolchain the same way BY CONSTRUCTION.
-#
-#   - uses: ./.github/actions/orbis-toolchain
+#   - uses: orbis-ports/orbis-porting-kit/.github/actions/setup-orbis@v1
 #     with:
-#       sdk-tag:          v0.5.4
 #       orbis-compat-ref: <commit sha>
 #       mesa-release:     orbis-mesa-<sha>
+#       sdk-tag:          v0.5.4          # optional
+#
+# It exports OO_PS4_TOOLCHAIN, ORBIS_COMPAT_DIR, ORBIS_MESA_SRC and ORBIS_MESA_BUILD, as both
+# environment variables and step outputs.
+#
+# ------------------------------------------------------------------ why this file is published
+#
+# It was copied. sonic3air wrote it, RetroArch took a copy, OpenGothic took a copy of that - and by
+# 2026-09-18 the three had drifted to 317 lines against 332, with DIFFERENT CACHE KEYS and DIFFERENT
+# SDK sanity lists. Nothing failed. Somebody read them side by side. The version here is the merge,
+# and it keeps the stricter half of every difference:
+#
+#   * the cache key carries the SDK tag as well as the overlay commit, because the archive it caches
+#     is built against both - a key naming only one serves an archive built against the other
+#   * the SDK sanity list includes lib/libc.a
+#   * the Mesa bundle is checked for include/EGL/egl.h and for its zlib archive, which two of the
+#     three copies never looked at
+#
+# ⚠ A SHA, NEVER A BRANCH NAME, for orbis-compat-ref. The cache key is that value verbatim, and a
+# key that can mean two different trees serves yesterday's overlay against today's headers.
 #
 # WHAT IT DOES NOT DO: build Mesa. Mesa is a download - one tarball from orbis-ports/mesa-ps4,
-# archives and headers together, because a mismatched vulkan_core.h is a struct-layout bug
-# that compiles cleanly and fails at run time.
+# archives and headers together, because a mismatched vulkan_core.h is a struct-layout bug that
+# compiles cleanly and fails at run time.
 #
-# ⚠ orbis-compat's scripts/ps4/orbis-env.sh only recognises a mesa-ps4 CHECKOUT (it probes
-# src/amd/vulkan) and overwrites ORBIS_MESA_BUILD. ps4/build.sh therefore takes the bundle from
-# ORBIS_MESA_SRC + ORBIS_MESA_BUILD exported here (or --mesa-bundle) and re-applies it after
-# sourcing orbis-env.sh.
-name: orbis-toolchain
+# ⚠ AND ONE THING A CONSUMER STILL HAS TO KNOW. orbis-compat's scripts/ps4/orbis-env.sh recognises
+# only a mesa-ps4 CHECKOUT (it probes src/amd/vulkan) and OVERWRITES ORBIS_MESA_BUILD. A build
+# script that sources it must re-apply ORBIS_MESA_SRC/ORBIS_MESA_BUILD afterwards, or pass its own
+# --mesa-bundle. That is a wart in the overlay, not in this action, and it is written here because
+# this is where a person looks first.
+name: setup-orbis
 description: OpenOrbis SDK + orbis-compat + the Mesa bundle, on disk and in the environment.
+branding:
+  icon: cpu
+  color: blue
 
 inputs:
   sdk-tag:
