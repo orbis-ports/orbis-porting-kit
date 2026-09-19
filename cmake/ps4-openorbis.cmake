@@ -76,7 +76,7 @@ set(PS4_TARGET_TRIPLE "x86_64-pc-freebsd12-elf")
 #
 # The include directories are NOT part of the common flags: C++ needs libc++'s directory
 # ahead of the C one, and that ordering is load-bearing (see below).
-# ⚠ THREE PLATFORM MACROS, AND ONLY ONE OF THEM IS THE SIGNAL. Write new code against __ORBIS__.
+# ⚠ FOUR PLATFORM MACROS, AND ONLY ONE OF THEM IS THE SIGNAL. Write new code against __ORBIS__.
 #
 # That is not a preference, it is what code nobody here wrote already assumes. The SDK's own
 # SDL_platform.h - upstream SDL, shipped inside the toolchain - reads:
@@ -91,12 +91,30 @@ set(PS4_TARGET_TRIPLE "x86_64-pc-freebsd12-elf")
 # a port already written for that SDK tests __ORBIS__ and will compile here unchanged. Ports in this
 # organisation grew up testing __PS4__, which is testing somebody else's by-product.
 #
-# All three stay defined, and removing any of them is not on the table: 24 files across these
-# repositories test __PS4__ today, upstream SDL wants PS4 or __ORBIS__, and a define costs nothing.
-# What changes is which one new code reaches for, and what an upstreamable patch uses - __ORBIS__,
-# every time.
+# All of them stay defined, and removing any is not on the table: 24 files across these repositories
+# test __PS4__ today, upstream SDL wants PS4 or __ORBIS__, and a define costs nothing. What changes is
+# which one new code reaches for, and what an upstreamable patch uses - __ORBIS__, every time.
+#
+# ⚠ THE FOURTH IS THE BARE `ORBIS`, AND IT WAS MISSING UNTIL 2026-09-19. This line defined __PS4__,
+# PS4 and __ORBIS__ and not ORBIS, while RetroArch - the largest body of code anyone points this
+# toolchain at - tests the bare spelling and nothing else. Measured in RetroArch at ps4-support today:
+# 42 of its .c/.cpp/.h/.hpp/.m/.mm files contain the bare token ORBIS, 35 of those inside a
+# preprocessor conditional, and ZERO source files in that tree contain __ORBIS__ - it appears only in
+# ps4/build-cores.sh, ps4/build-core.sh, Makefile.orbis and .ps4-build-config. Its own two build entry
+# points already pass it: ps4/build-cores.sh and Makefile.orbis both spell the PS4 flag set
+# `-DORBIS -D__ORBIS__ -D__PS4__ -DPS4`. So before this line changed, a stranger who pointed this
+# toolchain file at code derived from that frontend compiled a DIFFERENT PROGRAM than our own CI does
+# - every `#ifdef ORBIS` arm silently absent - and nothing would have said so. Aligning the three
+# entry points is the whole of the fix.
+#
+# ⚠ AND THE SAME SPELLING IS LOAD-BEARING A SECOND TIME, FOR A SECOND READER. `ORBIS` is also the name
+# 3dsTrident's CMake reads as an option, not as a preprocessor symbol: ps4/build-cores.sh:896 passes
+# `-DORBIS=ON -DENABLE_RENDERDOC_API=OFF` for that core. So the bare word answers a C preprocessor in
+# 35 files and a CMake `option()` in one project, and neither reader would accept a fifth spelling
+# invented to be tidy. That is the argument against adding a new platform macro and for defining the
+# one that was already in use: names here are read by tools nobody here wrote.
 set(PS4_COMMON_FLAGS
-  "--target=${PS4_TARGET_TRIPLE} -fPIC -funwind-tables -D__PS4__ -DPS4 -D__ORBIS__ -D_BSD_SOURCE=1 -isysroot ${OO_PS4_TOOLCHAIN}")
+  "--target=${PS4_TARGET_TRIPLE} -fPIC -funwind-tables -D__PS4__ -DPS4 -DORBIS -D__ORBIS__ -D_BSD_SOURCE=1 -isysroot ${OO_PS4_TOOLCHAIN}")
 
 # ⚠ THE OVERLAY GOES AHEAD OF THE SDK, AND MUST. orbis-compat corrects declarations this SDK gets
 # wrong - four pthread types musl declares smaller than Sony writes, measured on hardware - and it

@@ -113,8 +113,8 @@ change and belongs to a session with a console in front of it.
 
 ## `__ORBIS__`, not `__PS4__`
 
-The toolchain file defines `__ORBIS__`, `PS4` and `__PS4__`, so all three work and none is going
-away. **Write new code against `__ORBIS__`.**
+The toolchain file defines `__ORBIS__`, `PS4`, `__PS4__` and - since 2026-09-19 - the bare `ORBIS`,
+so all four work and none is going away. **Write new code against `__ORBIS__`.**
 
 The reason is in the SDK, in code nobody here wrote. `include/SDL2/SDL_platform.h` - upstream SDL -
 says:
@@ -133,6 +133,17 @@ organisation grew up testing `__PS4__` - 24 files against 9 - which is testing a
 by-product.
 
 Nothing needs renaming to build. It matters for new code, and for anything sent upstream.
+
+⚠ **The bare `ORBIS` is here because RetroArch is the one that reads it.** Measured in that fork at
+`ps4-support` on 2026-09-19: 42 of its `.c/.cpp/.h/.hpp/.m/.mm` files contain the bare token, 35 of
+them in a preprocessor conditional, and no source file in the tree contains `__ORBIS__` at all. Its
+own `Makefile.orbis` and `ps4/build-cores.sh` have always passed `-DORBIS`; this toolchain file did
+not, so the same sources built two different programs depending on which entry point compiled them.
+The spelling is load-bearing twice over: it is also the name 3dsTrident's CMake reads as an
+`option()`, which `build-cores.sh` sets with `-DORBIS=ON`. Outside RetroArch and its vendored
+`libretro-common` copies, nothing in this organisation has a bare-`ORBIS` conditional at all
+(measured over OpenGothic, Tempest, sonic3air, Panda3DS, SDL2, ZenKit, 3dsTrident, dynarmic,
+orbis-compat and this repository), so defining it changes no build here and repairs one.
 
 ## Licence
 
