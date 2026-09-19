@@ -21,6 +21,15 @@ KIT="${ORBIS_KIT_DIR:-$(cd "$HERE/.." && pwd -P)}"
 REG="$KIT/patches"
 [[ -d "$REG" ]] || { echo "orbis-patch: no patch registry at $REG" >&2; exit 2; }
 
+# ⚠ ONE TEMPORARY ROOT, CLEANED ON EXIT, AND NOT A `trap ... RETURN` ON A LOCAL. The first
+# version cleaned each clone with `trap 'rm -rf "$tmp"' RETURN` inside the check function, where
+# $tmp was a `local`. A bash RETURN trap stays installed for the CALLER's return too, so it fired
+# again when the --all loop returned - by which time $tmp no longer existed and `set -u` turned a
+# fully successful run into "tmp: unbound variable" and exit 1. MEASURED: the kit's patches workflow
+# run 35428183936 went red with all eight series green above it.
+TMPROOT="$(mktemp -d)"
+trap 'rm -rf "$TMPROOT"' EXIT
+
 log(){  printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 ok(){   printf '   \033[1;32mok\033[0m   %s\n' "$*"; }
 err(){  printf '\033[1;31mXX\033[0m %s\n' "$*" >&2; }
@@ -70,7 +79,7 @@ cmd_check_one(){
   local d up ref tmp rc=0; d="$(resolve "$1")"
   up="$(series_get "$d/SERIES" upstream)"; ref="$(series_get "$d/SERIES" ref)"
   [[ -n "$up" && -n "$ref" ]] || { err "$1: SERIES has no upstream/ref"; return 2; }
-  tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' RETURN
+  tmp="$TMPROOT/$(printf '%s' "$1" | tr '/' '_')"; rm -rf "$tmp"; mkdir -p "$tmp"
   log "$1: $up @ $ref"
   # ⚠ SUBMODULES ARE OPT-IN PER SERIES, AND SKIPPING THEM LOOKS EXACTLY LIKE A STALE PATCH.
   # MEASURED 2026-09-19: with no submodules, three of Play!'s five patches reported
