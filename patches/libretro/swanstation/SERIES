@@ -22,16 +22,30 @@ upstream: https://github.com/libretro/swanstation.git
 ref: main
 
 patch: 0001-orbis-give-the-memory-arena-a-real-implementation.patch
+  exit: none
+  exit-why: src/common/memory_arena.cpp - shared, not executable, memory; no shm_open here. Not what orbis_jit answers
   upstream-status: local
 patch: 0002-orbis-the-recompiler-targets-the-sysv-abi.patch
+  exit: upstream (candidate)
+  exit-why: cpu_recompiler_types.h - the target is SysV, which upstream keys on platform rather than on ABI
   upstream-status: local
 patch: 0003-orbis-give-the-jit-code-buffer-a-platform.patch
+  exit: overlay:orbis_jit
+  exit-why: jit_code_buffer.cpp - replaces a hand-written mmap+mprotect
   upstream-status: local
 patch: 0004-orbis-promote-s-fast-map-before-writing.patch
+  exit: overlay:orbis_jit
+  exit-why: cpu_code_cache.cpp promotes s_fast_map, including its hand-written 16 KiB rounding
   upstream-status: local
 patch: 0005-orbis-a-4-kib-guard-on-a-16-kib-page-console.patch
+  exit: none
+  exit-why: page-size arithmetic; the literal can name ORBIS_JIT_GRANULE, the arithmetic stays
   upstream-status: local
 patch: 0006-orbis-actually-disable-fastmem-on-failure.patch
+  exit: none
+  exit-why: cpu_code_cache.cpp - fastmem off on failure
   upstream-status: local
 patch: 0007-orbis-fastmem-off-where-its-handler-cannot-exist.patch
+  exit: none
+  exit-why: fastmem off where its handler cannot exist
   upstream-status: local

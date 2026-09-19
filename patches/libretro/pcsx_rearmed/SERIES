@@ -22,4 +22,6 @@ upstream: https://github.com/libretro/pcsx_rearmed.git
 ref: master
 
 patch: 0001-orbis-executable-memory-for-the-lightrec-code-buffer.patch
+  exit: overlay:orbis_jit
+  exit-why: lightrec/plugin.c - the code buffer
   upstream-status: local

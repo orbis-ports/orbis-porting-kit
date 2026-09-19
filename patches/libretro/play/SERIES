@@ -27,12 +27,22 @@ ref: master
 submodules: recursive
 
 patch: 0001-orbis-tell-the-bundled-zlib-that-unistd-exists.patch
+  exit: portlib:zlib
+  exit-why: the only file it touches is deps/Dependencies/build_cmake/zlib/CMakeLists.txt - a zlib patch wearing an application name
   upstream-status: local
 patch: 0002-orbis-give-the-path-helpers-a-console-arm.patch
+  exit: overlay:getcwd (candidate)
+  exit-why: deps/Framework/src/PathUtils.cpp; see PLAN.md Parking - interposing getcwd so a relative path means something
   upstream-status: local
 patch: 0003-orbis-resolve-gl-from-the-hw-render-callback.patch
+  exit: upstream (candidate)
+  exit-why: resolves GL through the hw_render callback, which is what libretro asks of every core
   upstream-status: local
 patch: 0004-orbis-this-kernel-does-not-deliver-sa-siginfo.patch
+  exit: none
+  exit-why: Source/ee/EeExecutor.cpp - this kernel does not deliver SA_SIGINFO
   upstream-status: local
 patch: 0005-orbis-one-arena-for-compiled-code.patch
+  exit: overlay:orbis_jit
+  exit-why: deps/CodeGen/src/MemoryFunction.cpp - ~130 lines of arena and free list
   upstream-status: local

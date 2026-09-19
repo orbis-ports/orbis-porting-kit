@@ -22,18 +22,34 @@ upstream: https://github.com/libretro/mupen64plus-libretro-nx.git
 ref: develop
 
 patch: 0001-orbis-executable-memory-for-the-recompiler.patch
+  exit: overlay:orbis_jit
+  exit-why: new_dynarec.c - executable memory for the recompiler
   upstream-status: local
 patch: 0002-orbis-renderer-selection-and-recompiler-guard.patch
+  exit: none
+  exit-why: libretro.c and core options - renderer selection, a product decision
   upstream-status: local
 patch: 0003-orbis-executable-memory-for-the-rsp-jit.patch
+  exit: overlay:orbis_jit
+  exit-why: paraLLEl RSP jit_allocator.cpp; its 2 MiB block_size and the leak argument go with the shared arena
   upstream-status: local
 patch: 0004-orbis-measure-where-the-frame-goes.patch
+  exit: none
+  exit-why: frame instrumentation across five files
   upstream-status: local
 patch: 0005-orbis-process-rdp-commands-inline.patch
+  exit: none
+  exit-why: rdp_device.cpp - processes RDP commands inline, a performance decision
   upstream-status: local
 patch: 0006-orbis-report-what-the-depth-attachment-decided.patch
+  exit: none
+  exit-why: GLideN64 reports what the depth attachment decided
   upstream-status: local
 patch: 0007-orbis-refuse-the-fragment-depth-write-option.patch
+  exit: none
+  exit-why: refuses an option this GL cannot honour
   upstream-status: local
 patch: 0008-orbis-take-the-depth-width-test-desktop-gl-takes.patch
+  exit: none
+  exit-why: takes the depth test desktop GL takes
   upstream-status: local

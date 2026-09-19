@@ -22,4 +22,6 @@ upstream: https://github.com/icculus/DirkSimple.git
 ref: main
 
 patch: 0001-lua-build-lutf8lib.patch
+  exit: portlib:lua (candidate)
+  exit-why: patches CMakeLists.txt only, to build lua lutf8lib; a prebuilt lua with utf8 in it removes the patch
   upstream-status: local

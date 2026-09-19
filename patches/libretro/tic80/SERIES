@@ -22,4 +22,6 @@ upstream: https://github.com/nesbox/TIC-80.git
 ref: main
 
 patch: 0001-fft-unsupported-on-orbis.patch
+  exit: upstream (candidate)
+  exit-why: include/tic80_config.h and src/fftdata.c - a capability statement, the shape upstream already accepts for other platforms
   upstream-status: local

@@ -23,6 +23,41 @@ edits and produced the specialisation **twice**, which does not compile. Nothing
 patch; there was simply nowhere to record that it had been overtaken. Whoever marks one `merged`
 deletes it in the same commit.
 
+## ⚠ A library patch is an asset; an application patch is a debt
+
+The distinction decides what this directory is for. A patch on a **library** is amortised over every
+consumer of that library: one SDL2 backend serves every game that links it, which is why devkitPro
+keeps 76 of them for the Switch and why its SDL2 port is a 26,628-line patch on 41 files rather than
+a fork. A patch on an **application** serves one project and composes with nothing.
+
+Almost every patch in `libretro/` is the second kind, and that is not a reason to delete the
+registry — the alternative is not "no patches", it is forks and edited clones that the next
+`--update` throws away. It is a reason to treat the registry as a **staging area that drains**, and
+to say out loud how each line leaves.
+
+`exit:` names that route, with `exit-why:` giving the file that decided it:
+
+| route | meaning |
+|---|---|
+| `none` | kernel truth or a product decision. It stays, and saying so is also information |
+| `upstream` | the software's own maintainers would take it |
+| `portlib:<lib>` | a prebuilt dependency removes the need |
+| `overlay:<shim>` | a shim in orbis-compat removes the need |
+
+`(candidate)` means the route is plausible and nobody has proved it. `scripts/orbis-patch.sh debt`
+prints the whole table and groups it, because the useful question is not "how many patches are
+there" but "what would one deletion buy".
+
+Measured on 2026-09-19, over the thirty patches this registry started with: **16 have an exit and
+14 are kernel truth**, which is the same 14 the independent survey in
+`ps4-mesa-docs/docs/PLAN-minimal-port-diff-20260919.md` arrived at from the other direction. Two
+examples of why the field is worth the typing:
+
+- `libretro/play/0001` touches exactly one file, `deps/Dependencies/build_cmake/zlib/CMakeLists.txt`.
+  It is a **zlib patch wearing an application's name**, and it dies the day zlib arrives prebuilt.
+- **Seven patches across five cores** are one absent executable-memory allocator, and an eighth in
+  part. `orbis_jit` in the overlay is that allocator; wiring the callers to it is what deletes them.
+
 ## Three ways in, one registry
 
 | consumer | how |

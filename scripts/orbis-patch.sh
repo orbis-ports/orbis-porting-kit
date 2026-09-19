@@ -5,6 +5,7 @@
 #   orbis-patch.sh check  <family>/<project>            clone SERIES' ref shallowly, dry-run
 #   orbis-patch.sh check  --all                         every series in the registry
 #   orbis-patch.sh list   <family>/<project>            print the series as this script reads it
+#   orbis-patch.sh debt                                 every patch and the route by which it leaves
 #
 # The registry is $ORBIS_KIT_DIR/patches, or the directory two above this script.
 #
@@ -111,6 +112,36 @@ cmd_check_one(){
   return $rc
 }
 
+# ⚠ THE FIELD THIS READS IS THE POINT OF THE REGISTRY, not decoration. A patch on a LIBRARY is an
+# asset - it is amortised over every consumer of that library. A patch on an APPLICATION is a debt:
+# it serves one project and composes with nothing. So the registry is a staging area that drains,
+# and `exit:` names the route by which each line stops existing - upstream, a prebuilt dependency,
+# or a shim in the overlay. What has no exit is kernel truth, and saying so is also information.
+cmd_debt(){
+  local total=0 leaving=0
+  printf '%-34s %-30s %s\n' SERIES EXIT PATCH
+  while read -r sf; do
+    local proj; proj="$(dirname "${sf#./}")"
+    local patch="" route=""
+    while IFS= read -r line; do
+      case "$line" in
+        patch:*) patch="${line#patch:}"; patch="${patch## }" ;;
+        *exit:*) route="${line#*exit:}"; route="${route## }"
+                 total=$((total+1))
+                 [[ "$route" == none ]] || leaving=$((leaving+1))
+                 printf '%-34s %-30s %s\n' "$proj" "$route" "$patch" ;;
+      esac
+    done < "$REG/$sf"
+  done < <(cd "$REG" && find . -name SERIES -print | LC_ALL=C sort)
+  printf '\n%s patch(es); %s have an exit, %s are kernel truth or a product decision and stay.\n' \
+         "$total" "$leaving" "$((total-leaving))"
+  # Grouped, because the useful question is "what would deleting one thing buy".
+  printf '\nby route:\n'
+  while read -r sf; do sed -n 's/[[:space:]]*exit:[[:space:]]*//p' "$REG/$sf"; done \
+    < <(cd "$REG" && find . -name SERIES -print) \
+    | grep -v '^why' | LC_ALL=C sort | uniq -c | sort -rn | sed 's/^/  /'
+}
+
 cmd_check_all(){
   local rc=0 s
   while read -r s; do
@@ -122,6 +153,7 @@ cmd_check_all(){
 case "${1:-}" in
   apply) [[ $# -eq 3 ]] || { err "usage: orbis-patch.sh apply <family>/<project> <srcdir>"; exit 2; }
          cmd_apply "$2" "$3" ;;
+  debt)  cmd_debt ;;
   check) if [[ "${2:-}" == --all ]]; then cmd_check_all; else
            [[ $# -eq 2 ]] || { err "usage: orbis-patch.sh check <family>/<project>|--all"; exit 2; }
            cmd_check_one "$2"; fi ;;

@@ -22,10 +22,18 @@ upstream: https://github.com/JesseTG/melonds-ds.git
 ref: main
 
 patch: 0001-orbis-the-libretro-common-files-this-link-can-use.patch
+  exit: none
+  exit-why: cmake/libretro-common.cmake - which of the frontend objects this link may use
   upstream-status: local
 patch: 0002-orbis-a-link-level-address-header-and-a-tls-initialiser.patch
+  exit: overlay:net/if_dl.h + tls_init
+  exit-why: the patch adds src/libretro/orbis-compat/{net/if_dl.h,tls_init.cpp} - an overlay header and a TLS initialiser living inside a core
   upstream-status: local
 patch: 0003-orbis-no-working-posix-semaphores-use-the-portable-one.patch
+  exit: overlay:sem_*
+  exit-why: src/libretro/std/semaphore.hpp - the same absence SDL2 works around in SDL_syssem.c; one interposer deletes both
   upstream-status: local
 patch: 0004-orbis-turn-the-jit-on-without-fastmem.patch
+  exit: overlay:orbis_jit (partly)
+  exit-why: only the ARMJIT_Global.cpp promote hunk; the fastmem half is kernel truth and stays
   upstream-status: local

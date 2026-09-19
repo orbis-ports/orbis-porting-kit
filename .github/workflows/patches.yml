@@ -82,6 +82,26 @@ jobs:
           [ "$rc" -eq 0 ] && echo "== every SERIES names exactly the patches beside it"
           exit "$rc"
 
+      # ⚠ A PATCH WITH NO `exit:` IS HOW THE REGISTRY QUIETLY STOPS BEING A STAGING AREA. The field
+      # is the whole reason this directory is not an archive, and the only moment anyone thinks about
+      # the route is while writing the patch - so it is required then, not later.
+      - name: Every patch declares an exit
+        if: always()
+        run: |
+          set -euo pipefail
+          rc=0
+          while IFS= read -r s; do
+            # A `patch:` line must be followed by an `exit:` line before the next `patch:`.
+            awk -v f="$s" '
+              /^patch:/   { if (want) { printf "!! %s: %s has no exit:\n", f, last > "/dev/stderr"; bad=1 }
+                            last=$0; want=1; next }
+              /^[ \t]*exit:/ { want=0 }
+              END { if (want) { printf "!! %s: %s has no exit:\n", f, last > "/dev/stderr"; bad=1 }
+                    exit bad?1:0 }' "$s" || rc=1
+          done < <(find patches -name SERIES | LC_ALL=C sort)
+          [ "$rc" -eq 0 ] && echo "== every declared patch names the route by which it leaves"
+          exit "$rc"
+
       - name: Say what was checked
         if: always()
         run: |
@@ -96,4 +116,10 @@ jobs:
               n="$(find "$d" -maxdepth 1 -name '*.patch' | grep -c '' || true)"
               printf '| `%s` | %s | `%s` | %s |\n' "$p" "$up" "$rf" "$n"
             done < <(find patches -name SERIES | LC_ALL=C sort)
+            echo
+            echo "### Debt: how each patch leaves"
+            echo
+            echo '```'
+            ./scripts/orbis-patch.sh debt | tail -n 15
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

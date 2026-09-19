@@ -22,10 +22,16 @@ upstream: https://github.com/flyinghead/flycast
 ref: master
 
 patch: 0001-orbis-no-usable-segfault-context.patch
+  exit: none
+  exit-why: core/linux/context.cpp - this kernel does not deliver a usable segfault context
   upstream-status: local
 patch: 0002-orbis-code-caches-out-of-text.patch
+  exit: none
+  exit-why: core/oslib/virtmem.h - section placement and alignment, not an allocator; its alignas(0x4000) can name ORBIS_JIT_GRANULE
   upstream-status: local
 patch: 0003-orbis-promote-the-code-caches-in-place.patch
+  exit: overlay:orbis_jit
+  exit-why: core/linux/posix_vmem.cpp promotes pages in place - orbis_jit_protect
   upstream-status: local
 
 # Parked: present, deliberately NOT applied. The harness only globs *.patch.
