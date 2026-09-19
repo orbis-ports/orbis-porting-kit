@@ -1,0 +1,37 @@
+# Patch series for swanstation
+#
+# Read by scripts/orbis-patch.sh, cmake/OrbisPatch.cmake and the patches CI job. Lines are
+# `key: value`; everything after a # is a comment. Patch order is the file name order, which is
+# what git format-patch produces and what every consumer here relies on.
+#
+# upstream/ref name the tree these patches were written against. They are taken from the recipe
+# this organisation's CI actually uses, .libretro-super/recipes/linux/cores-linux-x64-generic,
+# NOT from the first recipe that mentions the core - the apple recipes pin mupen64plus_next to
+# branch `ios` and flycast to libretro's mirror, and a series that recorded those would be
+# describing a tree nobody builds.
+#
+# upstream-status is per patch and is the field that stops a merged patch living here forever:
+#   local        ours, not sent anywhere
+#   sent <url>   a pull request exists
+#   merged <sha> upstream took it; the patch is deletable and a script should say so
+# orbis-ports/dynarmic carried six lines for two months after upstream fixed the same defect
+# because there was nowhere to write this down.
+
+source-of-truth: libretro-super recipes/linux/cores-linux-x64-generic at bc2b5463
+upstream: https://github.com/libretro/swanstation.git
+ref: main
+
+patch: 0001-orbis-give-the-memory-arena-a-real-implementation.patch
+  upstream-status: local
+patch: 0002-orbis-the-recompiler-targets-the-sysv-abi.patch
+  upstream-status: local
+patch: 0003-orbis-give-the-jit-code-buffer-a-platform.patch
+  upstream-status: local
+patch: 0004-orbis-promote-s-fast-map-before-writing.patch
+  upstream-status: local
+patch: 0005-orbis-a-4-kib-guard-on-a-16-kib-page-console.patch
+  upstream-status: local
+patch: 0006-orbis-actually-disable-fastmem-on-failure.patch
+  upstream-status: local
+patch: 0007-orbis-fastmem-off-where-its-handler-cannot-exist.patch
+  upstream-status: local

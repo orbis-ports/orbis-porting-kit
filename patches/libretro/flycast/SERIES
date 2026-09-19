@@ -1,0 +1,33 @@
+# Patch series for flycast
+#
+# Read by scripts/orbis-patch.sh, cmake/OrbisPatch.cmake and the patches CI job. Lines are
+# `key: value`; everything after a # is a comment. Patch order is the file name order, which is
+# what git format-patch produces and what every consumer here relies on.
+#
+# upstream/ref name the tree these patches were written against. They are taken from the recipe
+# this organisation's CI actually uses, .libretro-super/recipes/linux/cores-linux-x64-generic,
+# NOT from the first recipe that mentions the core - the apple recipes pin mupen64plus_next to
+# branch `ios` and flycast to libretro's mirror, and a series that recorded those would be
+# describing a tree nobody builds.
+#
+# upstream-status is per patch and is the field that stops a merged patch living here forever:
+#   local        ours, not sent anywhere
+#   sent <url>   a pull request exists
+#   merged <sha> upstream took it; the patch is deletable and a script should say so
+# orbis-ports/dynarmic carried six lines for two months after upstream fixed the same defect
+# because there was nowhere to write this down.
+
+source-of-truth: libretro-super recipes/linux/cores-linux-x64-generic at bc2b5463
+upstream: https://github.com/flyinghead/flycast
+ref: master
+
+patch: 0001-orbis-no-usable-segfault-context.patch
+  upstream-status: local
+patch: 0002-orbis-code-caches-out-of-text.patch
+  upstream-status: local
+patch: 0003-orbis-promote-the-code-caches-in-place.patch
+  upstream-status: local
+
+# Parked: present, deliberately NOT applied. The harness only globs *.patch.
+parked: 0004-orbis-read-the-signal-context.patch.parked
+parked: 0005-orbis-nvmem-on-direct-memory.patch.parked

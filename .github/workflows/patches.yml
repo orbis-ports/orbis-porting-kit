@@ -1,0 +1,99 @@
+# Do the kit's patches still apply to the trees they name?
+#
+# ⚠ THIS JOB TURNS A COST INTO A DATE. A patch here is carried at every update of the software it
+# patches, and the failure mode without this job is discovery: somebody rebuilds a core months
+# later and finds a patch that upstream has made redundant, or worse, one that still applies to a
+# file whose meaning changed. orbis-ports/dynarmic carried six lines for two months after upstream
+# fixed the same defect, and nothing anywhere said so.
+#
+# ⚠ AND IT IS SCHEDULED, WHICH cores.yml DELIBERATELY IS NOT. The difference is that this job
+# PUBLISHES NOTHING - it clones, dry-applies and reports. cores.yml's schedule was removed because
+# an unattended run there could replace a working core in the bucket with a broken one; there is no
+# such edge here, and the whole point is to hear about drift on a Monday rather than mid-build.
+name: patches still apply
+
+on:
+  push:
+    paths:
+      - 'patches/**'
+      - 'scripts/orbis-patch.sh'
+      - 'cmake/OrbisPatch*.cmake'
+      - '.github/workflows/patches.yml'
+  pull_request:
+    paths:
+      - 'patches/**'
+      - 'scripts/orbis-patch.sh'
+      - 'cmake/OrbisPatch*.cmake'
+  schedule:
+    # Mondays, 05:23 UTC. A time nobody is building at, and a day where a red result has a week in
+    # front of it rather than a weekend.
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
+    inputs:
+      series:
+        description: One series (e.g. libretro/play) instead of all of them.
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patches-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    # Play! clones three submodules shallowly; everything else is a single --depth 1 clone. Measured
+    # locally at well under two minutes for all eight series, so 20 is margin and not a guess about
+    # the network.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Every series, against the ref its SERIES names
+        run: |
+          set -euo pipefail
+          if [ -n "${{ github.event.inputs.series }}" ]; then
+            ./scripts/orbis-patch.sh check "${{ github.event.inputs.series }}"
+          else
+            ./scripts/orbis-patch.sh check --all
+          fi
+
+      # ⚠ A SERIES FILE THAT DISAGREES WITH THE DIRECTORY IS THE FAILURE THIS CATCHES, and the
+      # check above cannot: it reads SERIES, so a patch present on disk and absent from SERIES is
+      # simply never tried. That is how a patch stops being applied without anybody removing it.
+      - name: SERIES and the directory agree
+        if: always()
+        run: |
+          set -euo pipefail
+          rc=0
+          while IFS= read -r s; do
+            d="$(dirname "$s")"
+            declared="$(sed -n 's/[[:space:]]*#.*//; s/^patch:[[:space:]]*//p' "$s" | sed '/^$/d' | LC_ALL=C sort)"
+            present="$(cd "$d" && find . -maxdepth 1 -name '*.patch' -exec basename {} \; | LC_ALL=C sort)"
+            if [ "$declared" != "$present" ]; then
+              echo "!! $d: SERIES and the directory disagree" >&2
+              diff <(echo "$declared") <(echo "$present") | sed 's/^/   /' >&2 || true
+              rc=1
+            fi
+          done < <(find patches -name SERIES | LC_ALL=C sort)
+          [ "$rc" -eq 0 ] && echo "== every SERIES names exactly the patches beside it"
+          exit "$rc"
+
+      - name: Say what was checked
+        if: always()
+        run: |
+          {
+            echo "### Patch registry"
+            echo
+            printf '| series | upstream | ref | patches |\n|---|---|---|---|\n'
+            while IFS= read -r s; do
+              d="$(dirname "$s")"; p="${d#patches/}"
+              up="$(sed -n 's/[[:space:]]*#.*//; s/^upstream:[[:space:]]*//p' "$s" | sed '/^$/d' | head -1)"
+              rf="$(sed -n 's/[[:space:]]*#.*//; s/^ref:[[:space:]]*//p' "$s" | sed '/^$/d' | head -1)"
+              n="$(find "$d" -maxdepth 1 -name '*.patch' | grep -c '' || true)"
+              printf '| `%s` | %s | `%s` | %s |\n' "$p" "$up" "$rf" "$n"
+            done < <(find patches -name SERIES | LC_ALL=C sort)
+          } >> "$GITHUB_STEP_SUMMARY"
