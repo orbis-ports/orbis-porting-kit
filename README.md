@@ -5,10 +5,13 @@ setup, the CI that installs it, the Vulkan loader shim, and a worked example tha
 packages.
 
 ⚠ **This is v1.x and it is still moving.** `v1.0.0` is a tag that does not move and is what to pin
-if you want today's shape; `v1` follows the newest `v1.x` and will change under you. A few files are
-still verbatim copies of `orbis-ports/orbis-compat`, carried so the existing ports keep building
-untouched while the boundary between "the kit" and "the overlay" settles - `scripts/check-copies.sh`
-fails the build if any of them drifts, and the list is meant to reach zero.
+if you want today's shape; `v1` follows the newest `v1.x` and will change under you. Nothing here is a
+copy of `orbis-ports/orbis-compat` any more: `vkloader/` and `cmake/` stopped being copies on
+2026-09-18, which is when the copy phase ended, and `scripts/check-copies.sh` - the script that failed
+the build when one of them drifted - ended with it. `ls scripts/` is `ps4/`, `orbis-new.sh` and
+`orbis-patch.sh`, and no file in this repository is byte-identical to one in the overlay (`cmp` over
+every matching basename, today). What this repository still needs from the overlay it takes at build
+time: `include/` and `build/liborbis-compat.a` through `ORBIS_COMPAT_DIR`.
 
 ```yaml
 - uses: orbis-ports/orbis-porting-kit/.github/actions/setup-orbis@v1
@@ -53,7 +56,7 @@ services/          ime, data - the console half of what a port needs (extracted)
                    audio/ is a header of measurements only, no code
 examples/triangle/ a triangle on the television, built from this repository's own copies
 .github/actions/setup-orbis/   installs SDK + overlay + Mesa, exports four variables
-scripts/check-copies.sh        every copy is byte-identical, or the build is red
+patches/                       the registry: what this platform needs in software it does not own
 ```
 
 ## What has been proven, and when
@@ -63,9 +66,18 @@ scripts/check-copies.sh        every copy is byte-identical, or the build is red
 | `kit` workflow, 2026-09-18 | `examples/triangle` configures with this repository's `ps4-openorbis.cmake` and links this repository's `vkloader/`. `eboot.bin`, 25 282 624 B. |
 | `opengothic-on-the-kit`, 2026-09-18 | **OpenGothic, unmodified, at its own pinned commit**, builds and packages against a tree where the overlay's `cmake/` and `vkloader/` are ABSENT and this repository's are in their place. `IV0000-TMPS10021_00-TEMPESTOPENGOTHI.pkg`, 51 314 688 B, and the port's checkout came back clean. |
 
-The second one also exercises the two copies the first could not reach:
-`cmake/ps4-openorbis.cmake` takes `orbis-compat.cmake` and `orbis-tls.ld` from `ORBIS_COMPAT_DIR`
-(lines 107 and 201), which is the composed tree there, which is this repository.
+The second one also exercises what the first could not reach: a real port's own build script, run
+against a tree where the overlay's `cmake/` and `vkloader/` are absent and this repository's are in
+their place.
+
+⚠ **And it is `cmake/`'s own siblings that answer, not `ORBIS_COMPAT_DIR`.** This paragraph said the
+toolchain file took `orbis-compat.cmake` and `orbis-tls.ld` from that variable until 2026-09-19; it
+does not, and has not since the two moved here. `ps4-openorbis.cmake` includes
+`${CMAKE_CURRENT_LIST_DIR}/orbis-compat.cmake` and links `--script=${CMAKE_CURRENT_LIST_DIR}/orbis-tls.ld`,
+and its own comment gives the reason: "this file, orbis-compat.cmake and orbis-tls.ld travel together
+and a bundle stages them together, so reaching through a variable to find the file next to this one was
+only ever a way for the three to come from different versions." `ORBIS_COMPAT_DIR` still has to be set,
+and what it answers is `include/` and the archive.
 
 ⚠ **What neither proves.** `include/` and `build/liborbis-compat.a` come from `orbis-compat`. They
 are the overlay and they are not the kit's to own; composing them is the shape of the dependency,

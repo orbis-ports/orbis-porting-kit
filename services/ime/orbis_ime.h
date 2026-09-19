@@ -36,7 +36,12 @@
 //     restriction coming back on another firmware.
 //
 // Requires orbis-compat for orbis_log(); the SDK's libSceIme, libSceCommonDialog, libSceSysmodule
-// and libSceUserService are linked by the toolchain file.
+// and libSceUserService are named by services/CMakeLists.txt, in its target_link_libraries(PUBLIC),
+// which puts them on the consumer's link line through orbis::services. ⚠ NOT by the toolchain file:
+// this header said so until 2026-09-19 and cmake/ps4-openorbis.cmake contains no `Sce` at all (grep:
+// 0 matches). A consumer that compiled these sources without that CMakeLists - by listing the .cpp
+// itself - gets four undefined symbols at the final link of a title, far from the file that needed
+// them, and would have read this header to find out who was supposed to provide them.
 #include <cstdint>
 #include <string>
 
