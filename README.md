@@ -49,7 +49,8 @@ cmake/             the CMake toolchain file, the packaging rules, the linker scr
 scripts/ps4/       make-pkg.sh, deploy.sh, logs.sh, orbis-env.sh - what a person runs
 scripts/orbis-new.sh   the dependency doctor (--check) and the project generator
 release/           the bundle: cut, offline verify, publication gate, 27 tests
-services/          audio, ime, data - the console half of what a port needs (extracted)
+services/          ime, data - the console half of what a port needs (extracted);
+                   audio/ is a header of measurements only, no code
 examples/triangle/ a triangle on the television, built from this repository's own copies
 .github/actions/setup-orbis/   installs SDK + overlay + Mesa, exports four variables
 scripts/check-copies.sh        every copy is byte-identical, or the build is red
@@ -81,23 +82,31 @@ yet.
 ## The services, and what was left behind
 
 `services/` is the first thing here that is NOT a copy. It came out of OpenGothic's `ps4/`, which
-carries about 2800 lines that are not about Gothic - and on reading them, only about 780 are about
+carries about 2800 lines that are not about Gothic - and on reading them, only about 667 are about
 the console:
 
 | service | from | kept | left in the game |
 |---|---|---|---|
-| `audio` | `og_sound_orbis.cpp` 1075 | 113 | Tempest `SoundDevice` backend, software mixer, resampler, IMA-ADPCM decoder |
 | `ime` | `og_ps4_ime.{h,cpp}` 361 | 350 | the save-dialog wiring |
 | `data` | `og_ps4_boot.cpp` 762 | 317 | ~450 lines of probes of that game's archives |
 
-The measured facts came across with the code, because they are most of its value: the audio port is
-48000 Hz and nothing else, grain is a multiple of 256 in 256..2048, `sceAudioOutOutput` blocks and
-is the only clock, and **a process gets one port** - which is an API constraint, not a detail. The
-IME's teardown ladder arrived with its own retraction attached: `0x80bc0008` was a settling time,
-not the per-process limit it was first recorded as.
+The measured facts came across with the code, because they are most of its value. The IME's teardown
+ladder arrived with its own retraction attached: `0x80bc0008` was a settling time, not the
+per-process limit it was first recorded as.
 
-CI compiles all three for the console with no engine around them. A service that only compiles
-inside the tree it came from was moved twice, not extracted.
+CI compiles both for the console with no engine around them. A service that only compiles inside the
+tree it came from was moved twice, not extracted.
+
+⚠ **`audio` was here and is not a service.** `og_sound_orbis.cpp`'s 113 platform lines arrived on
+2026-09-18 as `orbis::audio_start()` and a `std::thread` looping on `sceAudioOutOutput`, and were
+deleted on 2026-09-19. The port is the console's single output stream and the pump owns a thread: a
+second program in the process would notice both, so the owner is the middleware or the engine - SDL2's
+`src/audio/orbis` driver, OpenGothic's own `SoundDevice` - and never the kit. It also had no caller.
+`services/audio/orbis_audio.h` stays, with no functions in it, because the measurements are the part
+worth keeping: the port is 48000 Hz and nothing else, grain is a multiple of 256 in 256..2048,
+`sceAudioOutOutput` blocks and is the only clock, and a process gets one port. ⚠ It now also carries
+the one thing the API had quietly picked a side on - three places in this organisation measured what
+`sceAudioOutClose` does to the handle and they do not agree, and only hardware settles it.
 
 ⚠ **OpenGothic still builds its own copies and is untouched.** Switching it over is a separate
 change and belongs to a session with a console in front of it.
