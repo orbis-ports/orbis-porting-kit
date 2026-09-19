@@ -17,14 +17,17 @@
 # orbis-ports/dynarmic carried six lines for two months after upstream fixed the same defect
 # because there was nowhere to write this down.
 
+# ⚠ ONE PATCH LEFT THIS SERIES ON 2026-09-19 AND LIVES IN RetroArch/ps4/core-patches/melondsds.
+# 0001-orbis-the-libretro-common-files-this-link-can-use.patch. Its exit-why said it decides "which of
+# the frontend objects this link may use" - a fact about RetroArch's link, not about this console - so
+# it belongs to the frontend, which applies its tree after this one. What stays here is an overlay
+# header, a TLS initialiser, the absent POSIX semaphores and the JIT, all of which a standalone build
+# of this core on this console would need too.
+
 source-of-truth: libretro-super recipes/linux/cores-linux-x64-generic at bc2b5463
 upstream: https://github.com/JesseTG/melonds-ds.git
 ref: main
 
-patch: 0001-orbis-the-libretro-common-files-this-link-can-use.patch
-  exit: none
-  exit-why: cmake/libretro-common.cmake - which of the frontend objects this link may use
-  upstream-status: local
 patch: 0002-orbis-a-link-level-address-header-and-a-tls-initialiser.patch
   exit: overlay:net/if_dl.h + tls_init
   exit-why: the patch adds src/libretro/orbis-compat/{net/if_dl.h,tls_init.cpp} - an overlay header and a TLS initialiser living inside a core

@@ -17,6 +17,14 @@
 # orbis-ports/dynarmic carried six lines for two months after upstream fixed the same defect
 # because there was nowhere to write this down.
 
+# ⚠ SIX PATCHES LEFT THIS SERIES ON 2026-09-19 AND LIVE IN RetroArch/ps4/core-patches/mupen64plus_next.
+# 0002, 0004, 0005, 0006, 0007 and 0008. Their own exit-why said what they were: "renderer selection,
+# a product decision", "frame instrumentation across five files", "a performance decision", and three
+# reports of what this GL stack does with a depth attachment. None of them is a thing a standalone
+# build of this core on this console would need, so they are the frontend's business and they moved to
+# the frontend, which applies its tree after this one. The two that stay are the executable-memory
+# arena, which any consumer of this core here needs and which orbis_jit is meant to delete.
+
 source-of-truth: libretro-super recipes/linux/cores-linux-x64-generic at bc2b5463
 upstream: https://github.com/libretro/mupen64plus-libretro-nx.git
 ref: develop
@@ -25,31 +33,7 @@ patch: 0001-orbis-executable-memory-for-the-recompiler.patch
   exit: overlay:orbis_jit
   exit-why: new_dynarec.c - executable memory for the recompiler
   upstream-status: local
-patch: 0002-orbis-renderer-selection-and-recompiler-guard.patch
-  exit: none
-  exit-why: libretro.c and core options - renderer selection, a product decision
-  upstream-status: local
 patch: 0003-orbis-executable-memory-for-the-rsp-jit.patch
   exit: overlay:orbis_jit
   exit-why: paraLLEl RSP jit_allocator.cpp; its 2 MiB block_size and the leak argument go with the shared arena
-  upstream-status: local
-patch: 0004-orbis-measure-where-the-frame-goes.patch
-  exit: none
-  exit-why: frame instrumentation across five files
-  upstream-status: local
-patch: 0005-orbis-process-rdp-commands-inline.patch
-  exit: none
-  exit-why: rdp_device.cpp - processes RDP commands inline, a performance decision
-  upstream-status: local
-patch: 0006-orbis-report-what-the-depth-attachment-decided.patch
-  exit: none
-  exit-why: GLideN64 reports what the depth attachment decided
-  upstream-status: local
-patch: 0007-orbis-refuse-the-fragment-depth-write-option.patch
-  exit: none
-  exit-why: refuses an option this GL cannot honour
-  upstream-status: local
-patch: 0008-orbis-take-the-depth-width-test-desktop-gl-takes.patch
-  exit: none
-  exit-why: takes the depth test desktop GL takes
   upstream-status: local
