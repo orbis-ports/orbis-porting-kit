@@ -1,5 +1,11 @@
 # orbis-porting-kit
 
+> **Archived.** This repository is superseded by [orbsdk](https://github.com/orbis-ports/orbsdk), the
+> PlayStation 4 SDK that replaces orbis-compat, orbis-porting-kit and the OpenOrbis toolchain
+> arrangement with one owned sysroot. Nothing here is maintained. The ps4-support branches of the orbis-ports forks
+> still build against this repository as it stands; their orbsdk branches do not use it.
+
+
 Everything a project needs to add a PlayStation 4 target without becoming a fork: the toolchain
 setup, the CI that installs it, the Vulkan loader shim, and a worked example that builds and
 packages.
